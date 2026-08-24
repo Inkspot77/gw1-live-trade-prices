@@ -1,0 +1,14 @@
+# LAN entry point for the dashboard. Caddy owns host port 8787 on all
+# interfaces and requires basic auth before proxying to the dashboard on the
+# internal compose network (started by the `lan` profile — see
+# docker-compose.yml and deploy/DEPLOY.md).
+#
+# Change the password:
+#   docker run --rm caddy:2-alpine caddy hash-password --plaintext 'newpass'
+# then replace the hash below and `docker compose up -d --build` (--lan).
+:8787 {
+	basic_auth {
+		alan <bcrypt-hash-generate-your-own>
+	}
+	reverse_proxy gw1-prices:8787
+}

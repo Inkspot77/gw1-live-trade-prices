@@ -102,6 +102,12 @@ immediately even though that first poll takes 25-30 seconds.
 `--host 0.0.0.0` in the shipped unit only makes sense on a network you trust.
 
 - **Trusted home LAN** — leave it, browse to `http://server-ip:8787`.
+- **LAN, with a password** — the compose `lan` profile starts a Caddy that
+  owns host port 8787 and demands basic auth before proxying to the dashboard
+  (`deploy.sh --lan` deploys it). Change the password by running
+  `docker run --rm caddy:2-alpine caddy hash-password --plaintext 'newpass'`
+  and putting the new hash in `Caddyfile`. This is the safe way to expose it
+  beyond loopback when the LAN is not fully trusted.
 - **Anything less trusted** — drop `--host 0.0.0.0` so it binds loopback only,
   and tunnel in:
   `ssh -N -L 8787:127.0.0.1:8787 gw1-server`, then use `http://127.0.0.1:8787`.
