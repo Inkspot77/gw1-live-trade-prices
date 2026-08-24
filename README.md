@@ -173,6 +173,60 @@ Evaluation runs on the poll loop, so alerts fire whether or not the dashboard is
 open. Desktop notifications are opt-in via the button in the panel, and fire at
 most once per alert.
 
+## Running it on a server
+
+Two ways to host this long-term: a container, or a systemd unit on bare metal.
+Either way, **the dashboard has no authentication** and its POST endpoints
+change stored state, so only bind it beyond loopback on a network you trust;
+otherwise tunnel in over SSH or put a reverse proxy with auth in front.
+
+### Docker
+
+```bash
+docker compose up -d --build
+```
+
+That's the whole setup — the image needs nothing else, since the app has no
+dependencies to install. It binds `127.0.0.1:8787` on the host by default (not
+the LAN; see the note at the top of `docker-compose.yml` to change that), and
+the price history lives in a named volume so it survives rebuilds.
+
+To watch a synced GWToolbox inventory folder, uncomment the two `# ` lines
+near `WATCH_DIR` in `docker-compose.yml` and point the bind mount at wherever
+your sync tool lands the export (see Part 2 of [DEPLOY.md](deploy/DEPLOY.md)
+for Syncthing / CIFS / scheduled-push options — the container side is
+identical either way).
+
+To seed 90 days of NPC trader history once, before first use:
+
+```bash
+docker compose --profile tools run --rm backfill
+```
+(Ctrl-C, or `docker compose stop backfill`, once the log shows the backfill
+summary line — the container keeps serving after the seed finishes, same as
+the plain-Node version does.)
+
+Two things worth knowing, both found by actually building and running this
+rather than assumed:
+
+- **The base image needs Node ≥22.13** for `node:sqlite` to load unflagged.
+  The `Dockerfile` checks this at build time and fails loudly if it doesn't,
+  rather than shipping an image that 500s on first request.
+- **`init: true` is load-bearing, not decoration.** Without it, Node runs as
+  PID 1 of the container's PID namespace, and a Linux kernel quirk means an
+  *unhandled* SIGTERM is silently dropped instead of falling back to its
+  default action (terminate) — `docker stop` then burns its full timeout and
+  force-kills every time. Measured: 10s (killed) without `init: true`, 0.3s
+  (clean exit) with it.
+
+### Bare metal / systemd
+
+`deploy/` holds a systemd unit, a preflight checker, and
+[DEPLOY.md](deploy/DEPLOY.md) — a walkthrough for hosting the dashboard on an
+Ubuntu box and syncing the inventory export from a Windows Guild Wars install
+(Syncthing, a CIFS mount, or a scheduled push). The Windows-sync half of that
+guide applies identically whichever way you run the dashboard itself.
+
 ## The two economies never mix
 
 Post-Searing settles in ectos; Pre-Searing settles in Black Dye. Both rates
