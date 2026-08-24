@@ -1,6 +1,9 @@
 # GW1 Live Trade Prices
 #
-#   docker compose up -d --build          start the dashboard
+#   docker compose up -d --build          start the dashboard (loopback only)
+#   docker compose --profile lan up -d --build
+#                                          also expose it on the LAN behind
+#                                          Caddy basic auth (hostname:8787)
 #   docker compose --profile tools run --rm backfill
 #                                          seed ~90 days of NPC trader history
 #                                          once (see deploy/DEPLOY.md #5 for why
@@ -8,10 +11,11 @@
 #   docker compose logs -f gw1-prices
 #
 # The dashboard has NO built-in authentication and its POST endpoints change
-# stored state. The port mapping below binds 127.0.0.1 on the host only, so it
-# is reachable from this machine and not the rest of the LAN — deliberately.
-# To share it on your LAN, change the mapping to "8787:8787" AND read the
-# "no authentication" note in deploy/DEPLOY.md first.
+# stored state. The gw1-prices port mapping below binds 127.0.0.1 on the host
+# only, so it is reachable from this machine and not the rest of the LAN —
+# deliberately. To share it with the LAN, use the `lan` profile: Caddy takes
+# over host port 8787 and asks for a username/password before proxying to the
+# dashboard over the internal network (see deploy/DEPLOY.md for the password).
 
 services:
   gw1-prices:
@@ -27,7 +31,9 @@ services:
     # this set. Cheap either way — SQLite's WAL mode is crash-safe regardless.
     init: true
     ports:
-      - "127.0.0.1:8787:8787"
+      # Loopback-only admin path, no auth. The LAN entry point is the `lan`
+      # profile's Caddy, which owns host port 8787.
+      - "127.0.0.1:8788:8787"
     volumes:
       # Named volume: Docker owns it and matches the container's UID
       # automatically, which sidesteps the bind-mount permission dance for the
@@ -60,5 +66,28 @@ services:
       # shows the backfill summary line, the same as the systemd guide's
       # "Ctrl-C once it prints".
 
+  # LAN exposure with authentication. The dashboard itself has NO auth, so it
+  # must not face the LAN directly; this tiny reverse proxy owns host port
+  # 8787 (all interfaces) and demands basic auth before proxying to the
+  # dashboard over the compose network. Enable with the `lan` profile:
+  #   docker compose --profile lan up -d --build
+  # (deploy/deploy.sh --lan does this remotely). Change the password with:
+  #   docker run --rm caddy:2-alpine caddy hash-password --plaintext 'newpass'
+  # then put the new hash in Caddyfile and `docker compose up -d --build`.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["lan"]
+    restart: unless-stopped
+    depends_on:
+      - gw1-prices
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
 volumes:
   gw1-data:
+  caddy-data:
+  caddy-config:

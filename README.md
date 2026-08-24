@@ -194,9 +194,11 @@ docker compose up -d --build
 ```
 
 That's the whole setup — the image needs nothing else, since the app has no
-dependencies to install. It binds `127.0.0.1:8787` on the host by default (not
-the LAN; see the note at the top of `docker-compose.yml` to change that), and
-the price history lives in a named volume so it survives rebuilds.
+dependencies to install. It binds `127.0.0.1:8788` on the host by default
+(loopback only — not the LAN; `docker compose --profile lan up -d --build`
+adds a Caddy with basic auth on host port 8787, see the note at the top of
+`docker-compose.yml`), and the price history lives in a named volume so it
+survives rebuilds.
 
 To watch a synced GWToolbox inventory folder, uncomment the two `# ` lines
 near `WATCH_DIR` in `docker-compose.yml` and point the bind mount at wherever

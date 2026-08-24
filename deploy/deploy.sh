@@ -3,7 +3,7 @@
 # start the dashboard with Docker Compose over SSH.
 #
 # Usage:
-#   bash deploy/deploy.sh user@server [--dir /path/on/server] [--backfill]
+#   bash deploy/deploy.sh user@server [--dir /path/on/server] [--backfill] [--lan]
 #
 # Environment: DEPLOY_HOST / DEPLOY_DIR can replace the positional args.
 #
@@ -30,11 +30,13 @@ usage() {
 HOST=""
 DIR=""
 BACKFILL=0
+LAN=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dir)       DIR="$2"; shift 2 ;;
     --backfill)  BACKFILL=1; shift ;;
+    --lan)       LAN=1; shift ;;
     -h|--help)   usage ;;
     -*)
       echo "Unknown option: $1" >&2
@@ -73,8 +75,14 @@ rsync -a \
   --exclude 'data/prices.db*' \
   ./ "${HOST}:${DIR}/"
 
-echo "==> Building and starting on ${HOST}"
-ssh "$HOST" "cd '${DIR}' && docker compose up -d --build"
+COMPOSE="docker compose up -d --build"
+if [[ "$LAN" -eq 1 ]]; then
+  COMPOSE="docker compose --profile lan up -d --build"
+  echo "==> Building and starting on ${HOST} (lan profile: Caddy basic auth on :8787)"
+else
+  echo "==> Building and starting on ${HOST}"
+fi
+ssh "$HOST" "cd '${DIR}' && ${COMPOSE}"
 
 if [[ "$BACKFILL" -eq 1 ]]; then
   echo "==> Seeding 90 days of NPC trader history (resumable — Ctrl-C when the summary prints; the container keeps serving afterwards)"
@@ -82,4 +90,7 @@ if [[ "$BACKFILL" -eq 1 ]]; then
 fi
 
 echo
-echo "Deployed. Dashboard: ssh -N -L 8787:127.0.0.1:8787 ${HOST}, then http://127.0.0.1:8787"
+echo "Deployed. Dashboard: ssh -N -L 8788:127.0.0.1:8788 ${HOST}, then http://127.0.0.1:8788"
+if [[ "$LAN" -eq 1 ]]; then
+  echo "           LAN: http://<server-hostname>:8787 (basic auth, see deploy/DEPLOY.md for the password)"
+fi
