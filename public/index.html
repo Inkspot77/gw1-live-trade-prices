@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW1 Live Trade Prices</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">GW1 Live Trade Prices <span id="clock"></span></div>
+
+  <div class="filters">
+    <div class="segmented" role="group" aria-label="Economy">
+      <button type="button" data-realm="" aria-pressed="true">Both</button>
+      <button type="button" data-realm="post" aria-pressed="false">Post-Searing</button>
+      <button type="button" data-realm="pre" aria-pressed="false">Pre-Searing</button>
+    </div>
+    <input type="search" id="search" placeholder="Filter items…" aria-label="Filter items">
+    <button type="button" class="icon-button" id="theme-toggle" aria-label="Toggle colour theme">Light</button>
+    <button type="button" class="icon-button" id="refresh">Refresh</button>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="tiles" id="tiles"></div>
+
+    <section class="panel alerts-panel" id="alerts-panel" hidden>
+      <div class="alerts-head">
+        <h2>Sell now</h2>
+        <div class="alerts-actions">
+          <button type="button" class="icon-button" id="alerts-notify">Enable notifications</button>
+          <button type="button" class="icon-button" id="alerts-seen">Mark seen</button>
+        </div>
+      </div>
+      <p class="sub">
+        Things you own that are currently fetching more than they usually do. The suggested
+        price is capped at the fair corridor &mdash; a good moment to sell is not a licence to overcharge.
+      </p>
+      <div id="alerts-body"></div>
+    </section>
+
+    <div class="panel">
+      <h2>Market opportunities</h2>
+      <p class="sub">
+        Ranked by how far today&rsquo;s price sits from its own 60-day baseline, in robust
+        standard deviations. Click any row for the full history.
+      </p>
+
+      <div class="legend" aria-hidden="true">
+        <span class="key"><span class="swatch" style="background: var(--series-ask)"></span> Player ask (you buy)</span>
+        <span class="key"><span class="swatch" style="background: var(--series-bid)"></span> Player bid (you sell)</span>
+        <span class="key"><span class="swatch" style="background: var(--series-npc)"></span> NPC trader</span>
+      </div>
+
+      <table id="overview">
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col" class="num">Reference</th>
+            <th scope="col" class="num">Ask</th>
+            <th scope="col" class="num">Bid</th>
+            <th scope="col">Fair corridor</th>
+            <th scope="col" class="num">30d trend</th>
+            <th scope="col">Liquidity</th>
+            <th scope="col">Signal</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty" id="overview-empty" hidden>
+        No priced items yet — the collector is still building history. Give it a few minutes.
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Your inventory</h2>
+      <p class="sub">
+        GWToolbox writes your whole account inventory to
+        <code>inventories/tmp&lt;account-guid&gt;.json</code> in its settings folder while you play.
+        Drop that file here, or type items by hand.
+      </p>
+
+      <div class="checker-row">
+        <input type="file" id="inv-file" accept=".json,application/json" aria-label="GWToolbox inventory file">
+        <button type="button" class="icon-button" id="inv-clear">Clear</button>
+      </div>
+      <details id="inv-watch-details">
+        <summary class="muted">or watch a folder and re-import automatically</summary>
+        <p class="sub" style="margin-top:8px">
+          Point this at the Toolbox <code>inventories</code> folder, or at a synced copy of it if
+          Guild Wars runs on another machine. The newest export in the folder is re-read whenever
+          it changes.
+        </p>
+        <div class="checker-row">
+          <input type="text" id="inv-watch-path" aria-label="Folder to watch"
+            placeholder="/mnt/gw-sync/inventories">
+          <button type="button" class="icon-button" id="inv-watch-save">Watch</button>
+          <button type="button" class="icon-button" id="inv-watch-stop">Stop</button>
+        </div>
+        <div id="inv-watch-status" class="watch-status"></div>
+      </details>
+      <details id="inv-manual">
+        <summary class="muted">or type items by hand</summary>
+        <textarea id="inv-text" rows="5" aria-label="Items, one per line"
+          placeholder="250 Glob of Ectoplasm&#10;Obsidian Shard x88&#10;Charr Salvage Kit, 3"></textarea>
+        <button type="button" class="icon-button" id="inv-paste-go">Import typed list</button>
+      </details>
+      <div id="inv-status" class="sub"></div>
+
+      <div id="inv-summary"></div>
+      <div id="inv-body"></div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="panel">
+      <h2>Should I buy or sell?</h2>
+      <p class="sub">
+        Enter the price on the table. The verdict compares it to the live market and warns you
+        in both directions &mdash; overpaying, and underpaying the other side.
+      </p>
+
+      <div class="checker-row">
+        <input type="text" id="check-item" list="item-options" placeholder="Item, e.g. Glob of Ectoplasm" aria-label="Item">
+        <datalist id="item-options"></datalist>
+      </div>
+      <div class="checker-row">
+        <select id="check-realm" aria-label="Economy">
+          <option value="post">Post-Searing</option>
+          <option value="pre">Pre-Searing</option>
+        </select>
+        <select id="check-intent" aria-label="Direction">
+          <option value="buy">I am buying</option>
+          <option value="sell">I am selling</option>
+        </select>
+      </div>
+      <div class="checker-row">
+        <input type="text" id="check-price" placeholder="Price, e.g. 18k or 2e" aria-label="Price">
+        <button type="button" class="icon-button" id="check-go">Check</button>
+      </div>
+
+      <div id="verdict"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Demand calendar</h2>
+      <p class="sub">What the game is asking players for right now. These rotations move prices.</p>
+      <div id="calendar"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Price-check threads</h2>
+      <p class="sub">Guild Wars Legacy appraisals for unique weapons, which no price table covers.</p>
+      <ul class="thread-list" id="threads"></ul>
+    </div>
+
+    <div class="panel">
+      <h2>Sources</h2>
+      <p class="sub">Every panel above is built from these. A red dot means that source last failed.</p>
+      <div class="sources" id="sources"></div>
+      <p class="sub" id="db-stats" style="margin-top:12px"></p>
+    </div>
+  </aside>
+</main>
+
+<dialog id="detail">
+  <div class="dialog-head">
+    <div>
+      <div id="detail-title" style="font-weight:700;font-size:16px"></div>
+      <div id="detail-sub" class="muted" style="font-size:12px"></div>
+    </div>
+    <button type="button" class="icon-button close" id="detail-close">Close</button>
+  </div>
+  <div class="dialog-body" id="detail-body"></div>
+</dialog>
+
+<div class="tooltip" id="tooltip" hidden role="status"></div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

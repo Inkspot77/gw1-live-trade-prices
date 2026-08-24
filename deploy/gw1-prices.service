@@ -1,0 +1,57 @@
+# GW1 Live Trade Prices — systemd unit
+#
+# Install:
+#   sudo cp deploy/gw1-prices.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now gw1-prices
+#
+# Adjust User, WorkingDirectory and the --host/--watch flags to match your box.
+
+[Unit]
+Description=GW1 Live Trade Prices dashboard
+Documentation=file:///opt/gw1-prices/README.md
+# Needs outbound HTTPS for the price sources.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gw1
+Group=gw1
+WorkingDirectory=/opt/gw1-prices
+
+# --host 0.0.0.0 exposes the dashboard to the LAN. THERE IS NO AUTHENTICATION,
+# and the POST endpoints change stored state, so only do this on a network you
+# trust. To keep it private instead, drop the flag (it binds 127.0.0.1 by
+# default) and reach it over an SSH tunnel:
+#     ssh -N -L 8787:127.0.0.1:8787 gw1-server
+ExecStart=/usr/bin/node bin/gw1-prices.mjs --host 0.0.0.0 --port 8787 --watch /srv/gw1-sync/inventories
+
+Restart=always
+RestartSec=5
+# Upstream sources go down; do not let systemd give up on the service for it.
+StartLimitIntervalSec=0
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gw1-prices
+
+# Hardening. The service only needs to read its own directory, write its
+# database, and read the synced inventory folder.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/gw1-prices/data
+ReadOnlyPaths=/srv/gw1-sync
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=no
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target
