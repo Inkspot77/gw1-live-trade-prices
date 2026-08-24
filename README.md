@@ -287,13 +287,3 @@ light and dark themes.
   on rate limits, and every source fails independently — a red dot on the
   Sources panel means that one source is stale, not that the dashboard is down.
 
-## Development
-
-Branches are cheap; use one per change and merge back through a pull request:
-
-```bash
-git switch -c my-change
-# ...edit, test, commit...
-git push -u origin my-change
-github.com/Inkspot77/gw1-live-trade-prices -> Compare & pull request
-```
