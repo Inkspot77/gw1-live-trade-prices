@@ -1,0 +1,64 @@
+# GW1 Live Trade Prices
+#
+#   docker compose up -d --build          start the dashboard
+#   docker compose --profile tools run --rm backfill
+#                                          seed ~90 days of NPC trader history
+#                                          once (see deploy/DEPLOY.md #5 for why
+#                                          this must not also carry --no-poll)
+#   docker compose logs -f gw1-prices
+#
+# The dashboard has NO built-in authentication and its POST endpoints change
+# stored state. The port mapping below binds 127.0.0.1 on the host only, so it
+# is reachable from this machine and not the rest of the LAN — deliberately.
+# To share it on your LAN, change the mapping to "8787:8787" AND read the
+# "no authentication" note in deploy/DEPLOY.md first.
+
+services:
+  gw1-prices:
+    build: .
+    image: gw1-prices:latest
+    restart: unless-stopped
+    # Without this, Node runs as PID 1 of the container's PID namespace and a
+    # kernel quirk means an *unhandled* SIGTERM is silently dropped rather than
+    # falling back to its default action (terminate) — `docker stop` then eats
+    # its full timeout and force-kills every time. `init: true` runs a tiny
+    # init (tini) as PID 1 instead, which restores normal signal forwarding.
+    # Verified: stop time went from 10s (killed) to 0.3s (clean exit) with
+    # this set. Cheap either way — SQLite's WAL mode is crash-safe regardless.
+    init: true
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      # Named volume: Docker owns it and matches the container's UID
+      # automatically, which sidesteps the bind-mount permission dance for the
+      # one path (the SQLite database) that only this container ever touches.
+      - gw1-data:/app/data
+      # Uncomment to auto-import from a synced GWToolbox inventories folder.
+      # Bind mount instead of a named volume, because this path has to match
+      # wherever Syncthing/CIFS/rsync actually lands the export on this host —
+      # see deploy/DEPLOY.md Part 2 for the three ways to get it there.
+      # - /path/on/this/host/inventories:/watch:ro
+    environment:
+      - PORT=8787
+      - HOST=0.0.0.0
+      # - WATCH_DIR=/watch
+
+  # A one-off, not a long-running service: `--profile tools` keeps it out of
+  # `docker compose up`, so it only runs when asked for by name.
+  backfill:
+    build: .
+    image: gw1-prices:latest
+    profiles: ["tools"]
+    init: true  # same reason as above — makes `docker compose stop backfill` instant
+    volumes:
+      - gw1-data:/app/data
+    environment:
+      - BACKFILL=true
+      # NO_POLL is deliberately absent — see the note in deploy/DEPLOY.md #5.
+      # This still starts the HTTP server and keeps running after the seed
+      # finishes; stop it with `docker compose stop backfill` once the log
+      # shows the backfill summary line, the same as the systemd guide's
+      # "Ctrl-C once it prints".
+
+volumes:
+  gw1-data:

@@ -1,0 +1,16 @@
+.git
+.gitignore
+.freebuff
+node_modules
+npm-debug.log
+
+# Never bake a maintainer's local price history into the image. The whole
+# point of the data volume is that this stays outside it.
+data/prices.db
+data/prices.db-shm
+data/prices.db-wal
+
+# Dev-only; irrelevant at runtime.
+test
+deploy
+*.md
