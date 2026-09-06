@@ -10,6 +10,10 @@ data/prices.db-wal
 # Tooling-private files (logs, notes, ids)
 .freebuff/
 
+# Extracted CA root from the deployed Caddy (internal CA — trust this on
+# clients, never commit it; regenerate by pulling from the server volume)
+gw1-ca-root.crt
+
 # OS / editor junk
 .DS_Store
 *.swp

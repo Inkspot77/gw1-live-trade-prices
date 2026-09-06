@@ -1,12 +1,25 @@
-# LAN entry point for the dashboard. Caddy owns host port 8787 on all
-# interfaces and requires basic auth before proxying to the dashboard on the
-# internal compose network (started by the `lan` profile — see
-# docker-compose.yml and deploy/DEPLOY.md).
+# LAN entry point for the dashboard — HTTPS only. Caddy owns host port 8787
+# on all interfaces, terminates TLS with a certificate from its own internal
+# CA, and demands basic auth before proxying to the dashboard on the internal
+# compose network (started by the `lan` profile — see docker-compose.yml and
+# deploy/DEPLOY.md).
+#
+# The certificate covers both names below: `utility` for plain LAN clients
+# (add a hosts entry if your router does not resolve it) and the Tailscale
+# MagicDNS name for tailnet devices. `tls internal` issues it locally, so the
+# names do not need to resolve anywhere for the cert to exist — but the name
+# you type in the browser must match one of these SANs.
+#
+# Trust the CA on each client so browsers stop warning:
+#   1. Get the CA root:
+#        docker exec gw1-prices-caddy-1 cat /data/caddy/pki/authorities/local/root.crt
+#   2. Install it in the device's trust store (see deploy/DEPLOY.md).
 #
 # Change the password:
 #   docker run --rm caddy:2-alpine caddy hash-password --plaintext 'newpass'
 # then replace the hash below and `docker compose up -d --build` (--lan).
-:8787 {
+https://utility:8787, https://utility.example.ts.net:8787 {
+	tls internal
 	basic_auth {
 		alan <bcrypt-hash-generate-your-own>
 	}

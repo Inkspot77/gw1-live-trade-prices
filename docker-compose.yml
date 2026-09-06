@@ -10,12 +10,15 @@
 #                                          this must not also carry --no-poll)
 #   docker compose logs -f gw1-prices
 #
-# The dashboard has NO built-in authentication and its POST endpoints change
-# stored state. The gw1-prices port mapping below binds 127.0.0.1 on the host
-# only, so it is reachable from this machine and not the rest of the LAN —
-# deliberately. To share it with the LAN, use the `lan` profile: Caddy takes
-# over host port 8787 and asks for a username/password before proxying to the
-# dashboard over the internal network (see deploy/DEPLOY.md for the password).
+# The dashboard's own authentication is OFF by default (set AUTH_USER/
+# AUTH_PASS below to turn it on) and its POST endpoints change stored state.
+# The gw1-prices port mapping below binds 127.0.0.1 on the host only, so it is
+# reachable from this machine and not the rest of the LAN — deliberately. To
+# share it with the LAN, use the `lan` profile: Caddy takes over host port
+# 8787, terminates TLS, and asks for a username/password before proxying to
+# the dashboard over the internal network (see deploy/DEPLOY.md for the
+# password). AUTH_USER/AUTH_PASS and the `lan` profile are independent of each
+# other — use either, both, or neither.
 
 services:
   gw1-prices:
@@ -48,6 +51,13 @@ services:
       - PORT=8787
       - HOST=0.0.0.0
       # - WATCH_DIR=/watch
+      # Optional app-level password gate, independent of the `lan` Caddy
+      # profile below. Set both or neither — the process refuses to start
+      # with only one. Basic Auth alone is not encryption (see the README's
+      # Authentication section) — fine behind Caddy or a tunnel, not a
+      # substitute for TLS if this port ever faces the open internet directly.
+      # - AUTH_USER=alan
+      # - AUTH_PASS=something-long-and-unique
 
   # A one-off, not a long-running service: `--profile tools` keeps it out of
   # `docker compose up`, so it only runs when asked for by name.
@@ -62,14 +72,18 @@ services:
       - BACKFILL=true
       # NO_POLL is deliberately absent — see the note in deploy/DEPLOY.md #5.
       # This still starts the HTTP server and keeps running after the seed
-      # finishes; stop it with `docker compose stop backfill` once the log
-      # shows the backfill summary line, the same as the systemd guide's
-      # "Ctrl-C once it prints".
+      # finishes; once the log shows the backfill summary line, stop it with
+      # `docker stop $(docker ps -q --filter name=backfill-run)` (Ctrl-C if
+      # running attached), the same as the systemd guide's "Ctrl-C once it
+      # prints".
 
-  # LAN exposure with authentication. The dashboard itself has NO auth, so it
-  # must not face the LAN directly; this tiny reverse proxy owns host port
-  # 8787 (all interfaces) and demands basic auth before proxying to the
-  # dashboard over the compose network. Enable with the `lan` profile:
+  # LAN exposure with TLS. Even with AUTH_USER/AUTH_PASS set above, the
+  # dashboard's own Basic Auth is not encrypted in transit — so for anything
+  # beyond an already-encrypted tunnel, this tiny reverse proxy is still the
+  # one that should face the LAN. It owns host port 8787 (all interfaces),
+  # terminates HTTPS with its internal CA, and demands its own basic auth
+  # before proxying to the dashboard over the compose network. Enable with the
+  # `lan` profile:
   #   docker compose --profile lan up -d --build
   # (deploy/deploy.sh --lan does this remotely). Change the password with:
   #   docker run --rm caddy:2-alpine caddy hash-password --plaintext 'newpass'

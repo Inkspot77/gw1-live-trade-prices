@@ -78,11 +78,19 @@ rsync -a \
 COMPOSE="docker compose up -d --build"
 if [[ "$LAN" -eq 1 ]]; then
   COMPOSE="docker compose --profile lan up -d --build"
-  echo "==> Building and starting on ${HOST} (lan profile: Caddy basic auth on :8787)"
+  echo "==> Building and starting on ${HOST} (lan profile: Caddy HTTPS basic auth on :8787)"
 else
   echo "==> Building and starting on ${HOST}"
 fi
 ssh "$HOST" "cd '${DIR}' && ${COMPOSE}"
+
+# Caddyfile is a bind mount, so compose cannot see content changes and will
+# not recreate the proxy on its own — always bounce it so a new Caddyfile
+# (password hash, hostnames, TLS) actually takes effect.
+if [[ "$LAN" -eq 1 ]]; then
+  echo "==> Restarting caddy to pick up Caddyfile changes"
+  ssh "$HOST" "cd '${DIR}' && docker compose restart caddy"
+fi
 
 if [[ "$BACKFILL" -eq 1 ]]; then
   echo "==> Seeding 90 days of NPC trader history (resumable — Ctrl-C when the summary prints; the container keeps serving afterwards)"
@@ -92,5 +100,5 @@ fi
 echo
 echo "Deployed. Dashboard: ssh -N -L 8788:127.0.0.1:8788 ${HOST}, then http://127.0.0.1:8788"
 if [[ "$LAN" -eq 1 ]]; then
-  echo "           LAN: http://<server-hostname>:8787 (basic auth, see deploy/DEPLOY.md for the password)"
+  echo "           LAN: https://<hostname>:8787 (HTTPS, basic auth — trust the CA, see deploy/DEPLOY.md)"
 fi

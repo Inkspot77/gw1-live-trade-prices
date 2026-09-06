@@ -20,12 +20,27 @@ User=gw1
 Group=gw1
 WorkingDirectory=/opt/gw1-prices
 
-# --host 0.0.0.0 exposes the dashboard to the LAN. THERE IS NO AUTHENTICATION,
-# and the POST endpoints change stored state, so only do this on a network you
-# trust. To keep it private instead, drop the flag (it binds 127.0.0.1 by
-# default) and reach it over an SSH tunnel:
+# --host 0.0.0.0 exposes the dashboard to the LAN. The app has NO
+# authentication unless AUTH_USER/AUTH_PASS below are both set, and its POST
+# endpoints change stored state — so bind beyond loopback only on a network
+# you trust, or turn auth on, or both. To keep it private instead, drop the
+# flag (it binds 127.0.0.1 by default) and reach it over an SSH tunnel:
 #     ssh -N -L 8787:127.0.0.1:8787 gw1-server
 ExecStart=/usr/bin/node bin/gw1-prices.mjs --host 0.0.0.0 --port 8787 --watch /srv/gw1-sync/inventories
+
+# Basic Auth for the app itself — a lighter alternative to running Caddy on
+# this box (see deploy/DEPLOY.md #7). Uncomment both, or neither: half-set
+# credentials make the process refuse to start rather than run unprotected.
+# Environment= would put the password in `systemctl show`/the unit file
+# itself; EnvironmentFile keeps it in a separate, root-only-readable file:
+#     install -m 600 /dev/null /etc/gw1-prices.env
+#     printf 'AUTH_USER=alan\nAUTH_PASS=<something long and unique>\n' \
+#       | tee /etc/gw1-prices.env >/dev/null
+# EnvironmentFile=/etc/gw1-prices.env
+#
+# Remember: Basic Auth alone is base64, not encryption — it is only safe to
+# rely on over a transport that is already encrypted (an SSH tunnel, a
+# Tailscale/WireGuard link) or paired with the TLS-terminating Caddy setup.
 
 Restart=always
 RestartSec=5

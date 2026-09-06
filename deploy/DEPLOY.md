@@ -98,16 +98,57 @@ immediately even though that first poll takes 25-30 seconds.
 
 ### 7. Reaching it
 
-**There is no authentication.** The POST endpoints change stored state, so the
-`--host 0.0.0.0` in the shipped unit only makes sense on a network you trust.
+**The app has no authentication unless you turn it on.** The POST endpoints
+change stored state, so `--host 0.0.0.0` only makes sense on a network you
+trust, or with one of the auth options below.
 
 - **Trusted home LAN** — leave it, browse to `http://server-ip:8787`.
+- **A password gate on the app itself, no reverse proxy** — set `AUTH_USER`
+  and `AUTH_PASS` (both, or neither — the process refuses to start if only
+  one is set). The shipped unit has a commented-out `EnvironmentFile=` line
+  for this; uncomment it and write the two vars to the file it points at
+  (`chmod 600`, so only root and the `gw1` service user can read it):
+
+  ```bash
+  install -m 600 /dev/null /etc/gw1-prices.env
+  printf 'AUTH_USER=alan\nAUTH_PASS=something-long-and-unique\n' \
+    | tee /etc/gw1-prices.env >/dev/null
+  systemctl edit gw1-prices   # or edit the unit directly, then daemon-reload
+  ```
+
+  This is genuinely simple — one file, no second container, no certificate —
+  but **Basic Auth is base64 in transit, not encryption**. It stops a stranger
+  who finds the port from getting in; it does not stop anyone who can see the
+  raw traffic from reading the password off the wire. Only rely on it alone
+  over a transport that is already encrypted (an SSH tunnel, a Tailscale or
+  WireGuard link). Over plain HTTP on the open internet, pair it with the
+  Caddy setup below instead, which actually terminates TLS.
 - **LAN, with a password** — the compose `lan` profile starts a Caddy that
-  owns host port 8787 and demands basic auth before proxying to the dashboard
-  (`deploy.sh --lan` deploys it). Change the password by running
+  owns host port 8787, terminates **HTTPS** with its own internal CA, and
+  demands basic auth before proxying to the dashboard (`deploy.sh --lan`
+  deploys it). Change the password by running
   `docker run --rm caddy:2-alpine caddy hash-password --plaintext 'newpass'`
   and putting the new hash in `Caddyfile`. This is the safe way to expose it
   beyond loopback when the LAN is not fully trusted.
+
+  The certificate covers `utility` and `utility.example.ts.net` (Tailscale
+  MagicDNS — edit `Caddyfile` to use your own tailnet's name). To make
+  browsers stop warning, trust the CA root on each client
+  (pull it from the server, then install it in the device's trust store):
+
+  ```bash
+  docker exec gw1-prices-caddy-1 cat /data/caddy/pki/authorities/local/root.crt
+  ```
+
+  - **Windows** — `certmgr.msc` → Trusted Root Certification Authorities → Import.
+  - **macOS** — open the `.crt` in Keychain Access, set it to "Always Trust".
+  - **Linux** — copy to `/usr/local/share/ca-certificates/` then
+    `sudo update-ca-certificates`.
+  - **Android/iOS** — install the CA as a profile in settings.
+
+  Then browse to `https://utility:8787` (add `<server-lan-ip> utility` to the
+  client's hosts file if the router does not resolve the name) or
+  `https://utility.example.ts.net:8787` from tailnet devices.
 - **Anything less trusted** — drop `--host 0.0.0.0` so it binds loopback only,
   and tunnel in:
   `ssh -N -L 8787:127.0.0.1:8787 gw1-server`, then use `http://127.0.0.1:8787`.

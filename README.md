@@ -183,9 +183,37 @@ most once per alert.
 ## Running it on a server
 
 Two ways to host this long-term: a container, or a systemd unit on bare metal.
-Either way, **the dashboard has no authentication** and its POST endpoints
-change stored state, so only bind it beyond loopback on a network you trust;
-otherwise tunnel in over SSH or put a reverse proxy with auth in front.
+Either way, **authentication is off by default** and the POST endpoints change
+stored state, so only bind beyond loopback on a network you trust — or turn
+auth on first.
+
+### Authentication
+
+Set `AUTH_USER` and `AUTH_PASS` (env vars, or `--auth-user`/`--auth-pass`
+flags — both required together, or neither) and every request needs HTTP
+Basic Auth. The browser handles the credential prompt natively; there is no
+login page to build or maintain.
+
+```bash
+AUTH_USER=alan AUTH_PASS=something-long-and-unique node bin/gw1-prices.mjs --host 0.0.0.0
+```
+
+This is genuinely the *simple* option — one pair of env vars, no reverse proxy,
+no certificate — but it is worth being precise about what it does and does not
+do. **Basic Auth sends credentials base64-encoded on every request: trivially
+decodable, not encrypted.** It stops a stranger who finds the port from using
+the dashboard. It does not stop anyone who can see the raw network traffic from
+reading the password straight off the wire. Rely on it alone only over a
+transport that is already encrypted — an SSH tunnel, a Tailscale or WireGuard
+link. On the open internet over plain HTTP, pair it with real TLS termination:
+`deploy/`'s Docker setup ships exactly that (a Caddy profile that terminates
+HTTPS with its own internal CA and its own basic auth), documented in
+[DEPLOY.md](deploy/DEPLOY.md) — the two are independent, so it is fine to use
+either, both, or neither.
+
+A `GET /healthz` route always answers `200` with no credentials required, so a
+container health check keeps working without needing the password wired into
+it; it reveals nothing beyond "the process is up".
 
 ### Docker
 
@@ -196,9 +224,9 @@ docker compose up -d --build
 That's the whole setup — the image needs nothing else, since the app has no
 dependencies to install. It binds `127.0.0.1:8788` on the host by default
 (loopback only — not the LAN; `docker compose --profile lan up -d --build`
-adds a Caddy with basic auth on host port 8787, see the note at the top of
-`docker-compose.yml`), and the price history lives in a named volume so it
-survives rebuilds.
+adds a Caddy that serves HTTPS (internal CA) with basic auth on host port
+8787, see the note at the top of `docker-compose.yml`), and the price history
+lives in a named volume so it survives rebuilds.
 
 To watch a synced GWToolbox inventory folder, uncomment the two `# ` lines
 near `WATCH_DIR` in `docker-compose.yml` and point the bind mount at wherever
@@ -211,9 +239,9 @@ To seed 90 days of NPC trader history once, before first use:
 ```bash
 docker compose --profile tools run --rm backfill
 ```
-(Ctrl-C, or `docker compose stop backfill`, once the log shows the backfill
-summary line — the container keeps serving after the seed finishes, same as
-the plain-Node version does.)
+(Ctrl-C, or `docker stop $(docker ps -q --filter name=backfill-run)`, once
+the log shows the backfill summary line — the container keeps serving after
+the seed finishes, same as the plain-Node version does.)
 
 Two things worth knowing, both found by actually building and running this
 rather than assumed:

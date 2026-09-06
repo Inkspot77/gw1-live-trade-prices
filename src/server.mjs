@@ -22,6 +22,7 @@ import {
   valueInventory, importInventory, evaluateSellAlerts,
 } from './valuation.mjs';
 import { InventoryWatcher } from './watcher.mjs';
+import { createAuthGate } from './auth.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC_DIR = join(ROOT, 'public');
@@ -149,7 +150,17 @@ export async function startServer({
   poll = true,
   backfill = false,
   watch = null,
+  authUser = null,
+  authPass = null,
 } = {}) {
+  // Half-configured auth (only a user, or only a password) is worse than
+  // none: it looks protected but the gate below would never actually block
+  // anything, since createAuthGate() only enables when both are present.
+  if (Boolean(authUser) !== Boolean(authPass)) {
+    throw new Error('--auth-user and --auth-pass must both be set, or neither.');
+  }
+  const auth = createAuthGate(authUser && authPass ? { user: authUser, pass: authPass } : null);
+
   const store = openDatabase(dbPath);
   const poller = new Poller(store);
   const watcher = new InventoryWatcher(store, poller);
@@ -288,6 +299,17 @@ export async function startServer({
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
+    // Unauthenticated on purpose: lets a container/orchestrator health check
+    // confirm the process is alive without needing credentials wired through.
+    // It reveals nothing beyond "the server is up", same as an open port would.
+    if (url.pathname === '/healthz') {
+      return send(res, 200, 'ok', { 'content-type': 'text/plain' });
+    }
+
+    if (auth.enabled && !auth.check(req)) {
+      return auth.demandAuth(res);
+    }
+
     if (req.method === 'POST' && url.pathname.startsWith('/api/')) {
       const handler = postRoutes[url.pathname];
       if (!handler) return sendJson(res, 404, { error: 'no such endpoint' });
@@ -335,6 +357,14 @@ export async function startServer({
     server.listen(port, host, resolve);
   });
   console.log(`GW1 price dashboard -> http://${host}:${port}`);
+  if (auth.enabled) {
+    console.log(`Basic Auth: enabled (user "${authUser}")`);
+  } else if (host !== '127.0.0.1' && host !== 'localhost') {
+    console.log(
+      `⚠ Basic Auth is NOT enabled and this server is bound to ${host}, not loopback. `
+      + 'Set --auth-user/--auth-pass (or AUTH_USER/AUTH_PASS) before exposing this further.',
+    );
+  }
 
   // A path given on the command line wins over the stored one, so a shortcut
   // can pin the folder without editing anything through the UI.
