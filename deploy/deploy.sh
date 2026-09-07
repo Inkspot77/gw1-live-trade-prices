@@ -17,6 +17,10 @@
 #   - Excludes .git, .freebuff and the local prices.db* — the server builds
 #     its own history in the gw1-data volume (run with --backfill once for
 #     a 90-day NPC-trader baseline).
+#   - Excludes Caddyfile after the first deploy. It holds the LAN password
+#     hash, which is set once on the server (see deploy/DEPLOY.md) — every
+#     later deploy must leave it alone, or it would keep getting overwritten
+#     by this checkout's own unset placeholder hash.
 #   - The compose file binds 127.0.0.1:8787, so reach the dashboard with
 #     ssh -N -L 8787:127.0.0.1:8787 user@server, or edit the port mapping
 #     after reading the no-authentication note in deploy/DEPLOY.md.
@@ -69,11 +73,24 @@ ssh "$HOST" "
 "
 
 echo "==> Syncing project to ${HOST}:${DIR}"
+CADDYFILE_EXISTS=$(ssh "$HOST" "[ -f '${DIR}/Caddyfile' ] && echo yes || echo no")
 rsync -a \
   --exclude .git \
   --exclude .freebuff \
   --exclude 'data/prices.db*' \
+  --exclude Caddyfile \
   ./ "${HOST}:${DIR}/"
+
+if [[ "$CADDYFILE_EXISTS" == "no" ]]; then
+  echo "==> First deploy: copying the Caddyfile template (still has the placeholder password)"
+  rsync -a Caddyfile "${HOST}:${DIR}/Caddyfile"
+  if [[ "$LAN" -eq 1 ]]; then
+    echo "    Set a real password before it's usable — see deploy/DEPLOY.md's" >&2
+    echo "    'change the LAN password' step, then re-run with --lan." >&2
+  fi
+else
+  echo "==> Leaving the server's existing Caddyfile alone (has your real password hash)"
+fi
 
 COMPOSE="docker compose up -d --build"
 if [[ "$LAN" -eq 1 ]]; then
@@ -86,10 +103,16 @@ ssh "$HOST" "cd '${DIR}' && ${COMPOSE}"
 
 # Caddyfile is a bind mount, so compose cannot see content changes and will
 # not recreate the proxy on its own — always bounce it so a new Caddyfile
-# (password hash, hostnames, TLS) actually takes effect.
+# (password hash, hostnames, TLS) actually takes effect. Force-recreate
+# rather than restart: a plain restart trusts the container's existing mount
+# to already reflect the current file, which does not always hold — we hit a
+# container whose bind mount had gone stale (13 days old, content frozen at
+# whatever the file held on creation) and `restart`/`caddy reload` both kept
+# reading the stale copy. Recreating the container re-establishes the mount
+# from scratch, so this can't happen regardless of the container's history.
 if [[ "$LAN" -eq 1 ]]; then
-  echo "==> Restarting caddy to pick up Caddyfile changes"
-  ssh "$HOST" "cd '${DIR}' && docker compose restart caddy"
+  echo "==> Recreating caddy to pick up Caddyfile changes"
+  ssh "$HOST" "cd '${DIR}' && docker compose --profile lan up -d --force-recreate caddy"
 fi
 
 if [[ "$BACKFILL" -eq 1 ]]; then
