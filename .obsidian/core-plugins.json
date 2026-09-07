@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "version": 5
+  },
+  "plugins": {
+    "file-explorer": true,
+    "global-search": true,
+    "switcher": true,
+    "graph": true,
+    "backlink": true,
+    "outline": true,
+    "word-count": true
+  },
+  "commands": []
+}

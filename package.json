@@ -6,8 +6,17 @@
   "description": "Cross-referenced Guild Wars 1 price dashboard: live trade chat, NPC trader quotes, community price guides and the wiki demand calendar.",
   "engines": { "node": ">=22.13.0" },
   "scripts": {
-    "start": "node bin/gw1-prices.mjs",
-    "backfill": "node bin/gw1-prices.mjs --backfill",
-    "test": "node --test test/*.test.mjs"
+    "start": "node --env-file-if-exists=.env bin/gw1-prices.mjs",
+    "backfill": "node --env-file-if-exists=.env bin/gw1-prices.mjs --backfill",
+    "test": "node --test test/*.test.mjs",
+    "test:watch": "node --test --watch test/*.test.mjs",
+    "test:coverage": "node --test --experimental-test-coverage test/*.test.mjs"
+  },
+  "keywords": ["guild-wars-1", "gw1", "price-tracker", "trade", "dashboard"],
+  "author": "Inkspot77",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Inkspot77/gw1-live-trade-prices.git"
   }
 }

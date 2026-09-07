@@ -1,0 +1,57 @@
+/* Obsidian Vault Styling for GW1 Price Dashboard */
+/* This file customizes the appearance of documentation */
+
+.workspace-leaf {
+  border-radius: 4px;
+}
+
+.markdown-preview-view h1 {
+  font-weight: 700;
+  margin-bottom: 1em;
+}
+
+.markdown-preview-view h2 {
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+.markdown-preview-view h3 {
+  font-weight: 500;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+}
+
+.markdown-preview-view a {
+  color: #0076d6;
+}
+
+.markdown-preview-view a:hover {
+  text-decoration: underline;
+}
+
+/* Graph view enhancements */
+.graph-view.graph-visual {
+  background-color: var(--background-secondary);
+}
+
+/* Table styling */
+.markdown-preview-view table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.markdown-preview-view th, .markdown-preview-view td {
+  border: 1px solid var(--divider-color);
+  padding: 8px;
+  text-align: left;
+}
+
+.markdown-preview-view th {
+  background-color: var(--background-primary);
+  font-weight: 600;
+}
+
+.markdown-preview-view tr:nth-child(even) {
+  background-color: var(--background-secondary);
+}

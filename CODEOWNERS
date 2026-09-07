@@ -1,0 +1,24 @@
+# CODEOWNERS for gw1-live-trade-prices
+# This file specifies who is responsible for code in this repository.
+# It uses git blame to determine the last modifier for guidance.
+
+# Root files
+* @Inkspot77
+
+# Source code
+src/ @Inkspot77
+
+# Tests
+test/ @Inkspot77
+
+# Documentation
+*.md @Inkspot77
+
+# Configuration
+*.json @Inkspot77
+*.yml @Inkspot77
+*.mjs @Inkspot77
+
+# Docker
+docker-compose.yml @Inkspot77
+Dockerfile @Inkspot77

@@ -1,0 +1,102 @@
+{
+  "enabled": true,
+  "css": "",
+  "javascript": "",
+  "activeWindowMode": "standard",
+  "alwaysUpdate": false,
+  "attachmentFolder": "data",
+  "attachmentNewType": "file",
+  "darkMode": "dark",
+  "darkModeIntensity": "1",
+  "darkModeSaturation": "1",
+  "darkModeTint": "0.5",
+  "defaultDate": "",
+  "defaultLayout": {
+    "left": {
+      "children": [
+        {
+          "id": "file-explorer",
+          "type": "leaf"
+        }
+      ],
+      "direction": "horizontal",
+      "type": "split"
+    },
+    "main": {
+      "children": [
+        {
+          "children": [
+            {
+              "state": {
+                "type": "text"
+              },
+              "type": "leaf"
+            }
+          ],
+          "direction": "vertical",
+          "type": "split"
+        }
+      ],
+      "direction": "vertical",
+      "type": "split"
+    },
+    "right": {
+      "children": [
+        {
+          "id": "backlink",
+          "type": "leaf"
+        }
+      ],
+      "direction": "horizontal",
+      "type": "split"
+    }
+  },
+  "font": "serif",
+  "fontChinese": "serif",
+  "fontCode": "monospace",
+  "fontJapanese": "serif",
+  "fontSize": 16,
+  "fullScreen": false,
+  "hideBorders": false,
+  "hideInspector": false,
+  "hideStatusbar": false,
+  "hideTabBar": false,
+  "lastOpenFiles": [
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "deploy/DEPLOY.md"
+  ],
+  "livePreview": false,
+  "metadataMode": "metadata",
+  "metadataVisible": false,
+  "monospaceFont": "monospace",
+  "newFileLocation": "folder",
+  "newFileTemplate": "",
+  "nightMode": false,
+  "pdfExport": {
+    "backgroundColor": "ffffff",
+    "bodyColor": "333333",
+    "enabled": true,
+    "format": "A4",
+    "margin": "20",
+    "pageNumbers": false,
+    "textColor": "333333",
+    "whiteSpace": "normal"
+  },
+  "readOnly": false,
+  "restrictCenter": false,
+  "rightToLeft": false,
+  "sidebar": true,
+  "sidebarSize": 240,
+  "sidebarType": "tab",
+  "statusBar": true,
+  "tabMode": "tab",
+  "tabModeInactive": "tab",
+  "titleSize": "h1",
+  "uiFontSize": "medium",
+  "viewMode": "preview",
+  "viewModeInactive": "preview",
+  "windowMode": "standard",
+  "zoom": 1
+}

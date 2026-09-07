@@ -1,5 +1,9 @@
 # GW1 Live Trade Prices
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js >=22.13](https://img.shields.io/badge/node-%3E%3D22.13-brightgreen.svg)](https://nodejs.org)
+[![CI](https://github.com/Inkspot77/gw1-live-trade-prices/actions/workflows/docker-image.yml/badge.svg)](https://github.com/Inkspot77/gw1-live-trade-prices/actions/workflows/docker-image.yml)
+
 <img width="1291" height="1106" alt="screenshot-2026-08-23_21-32-51" src="https://github.com/user-attachments/assets/a117d14f-0268-402a-994b-dcbdad584e8a" />
 <img width="1238" height="1136" alt="screenshot-2026-08-23_21-31-58" src="https://github.com/user-attachments/assets/cf6f6e6e-afb4-475d-8d7a-aab4430bda26" />
 <img width="1296" height="1190" alt="screenshot-2026-08-23_21-31-34" src="https://github.com/user-attachments/assets/adb5d301-76dc-4844-b43a-9369b26dca1d" />
@@ -18,12 +22,39 @@ Runs entirely on your machine. No accounts, no dependencies, no build step.
 ```bash
 npm start                 # http://127.0.0.1:8787
 npm run backfill          # also pull 90 days of NPC trader history (do this once)
-npm test
+npm test                  # npm run test:watch / npm run test:coverage also work
 ```
 
 Requires **Node 22.13+** (or 23.4+). It uses the built-in `node:sqlite`, which
 needs `--experimental-sqlite` on 22.5-22.12 and is unflagged from 22.13.0 and
 23.4.0 onward.
+
+Every setting (`PORT`, `HOST`, `AUTH_USER`, `AUTH_PASS`, `WATCH_DIR`,
+`BACKFILL`, `NO_POLL`) can be a CLI flag or the matching environment
+variable — see [`.env.example`](.env.example) for the full list, or
+`node bin/gw1-prices.mjs --help`. Copy it to `.env` and `npm start` picks it
+up automatically via Node's own `--env-file-if-exists` — no dependency, and
+nothing is read from `.env` unless you're going through `npm start`/`npm run
+backfill` or pass the flag yourself.
+
+---
+
+## 📚 Documentation
+
+### For Obsidian Users
+This repository doubles as an Obsidian vault for comprehensive documentation. Open the `.obsidian/` folder in Obsidian to access:
+- Interactive graph view of documentation connections
+- Advanced search across all docs
+- Backlinks to see where topics are referenced
+- Note-taking and knowledge management features
+
+**Starting Point**: Open `docs/OBSIDIAN-VIEW.md` in Obsidian for guidance on using this as a knowledge base.
+
+### For GitHub Users
+- **[README](README.md)** - Project overview and quick start
+- **[CONTRIBUTING](CONTRIBUTING.md)** - How to contribute to this project
+- **[CHANGELOG](CHANGELOG.md)** - Version history and release notes
+- **[DEPLOY](deploy/DEPLOY.md)** - Hosting on Ubuntu server
 
 ---
 
@@ -101,8 +132,8 @@ per-character `.ini` layout; current builds write one JSON file per account.
 Both shapes are read here.)
 
 To use it: **Your inventory → choose the file.** If Guild Wars runs on a
-different machine, copy the file over, or point a synced folder at it. There is
-also a paste box for typing items by hand:
+different machine, copy the file over, or point a synced folder at it. There
+is also a paste box for typing items by hand:
 
 ```
 250 Glob of Ectoplasm
@@ -318,3 +349,15 @@ light and dark themes.
   on rate limits, and every source fails independently — a red dot on the
   Sources panel means that one source is stale, not that the dashboard is down.
 
+---
+
+## 📖 Additional Resources
+
+- **[Obsidian View Guide](docs/OBSIDIAN-VIEW.md)** - How to use this repository as an Obsidian vault
+- **[Contributing](CONTRIBUTING.md)** - How to contribute to this project
+- **[Changelog](CHANGELOG.md)** - Version history and release notes
+- **[Deploy Guide](deploy/DEPLOY.md)** - Hosting on Ubuntu server
+
+---
+
+*This project combines GitHub for version control and documentation, with Obsidian for knowledge management and documentation visualization.*

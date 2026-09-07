@@ -17,3 +17,11 @@ gw1-ca-root.crt
 # OS / editor junk
 .DS_Store
 *.swp
+
+# Obsidian: the vault config (theme, plugins, graph, snippets) IS committed
+# on purpose, so cloning the repo and opening it in Obsidian gives everyone
+# the same view — see docs/OBSIDIAN-VIEW.md. workspace.json is the one file
+# excluded: it is per-session UI state (which tabs were open, pane sizes)
+# that would otherwise churn on every commit and carries no shared meaning.
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
