@@ -117,123 +117,20 @@ function showTooltip(event, title, rows) {
 
 function hideTooltip() { tooltip.hidden = true; }
 
-/* ------------------------------------------------------- fair-price meter */
+/* --------------------------------------------------------- NPC rate cell */
 
-/**
- * A bullet chart, because the question is "where does one value sit inside a
- * range" rather than "how have several values changed". The corridor is the
- * shaded band; NPC bounds are hard rules drawn as full-height rules; spot ask
- * and bid are the live market; the caret is the price being evaluated.
- */
-function corridorMeter(data, { width = 320, height = 62, marker = null } = {}) {
-  let { low, high } = data;
-  const { traderAsk, traderBid, spotAsk, spotBid } = data;
-
-  // With one-sided or repetitive quotes the quartiles collapse and the corridor
-  // renders as a hairline. Give it a visible minimum so the band still reads as
-  // a range rather than a stray tick.
-  if (Number.isFinite(low) && Number.isFinite(high)) {
-    const centre = (low + high) / 2;
-    const minHalf = centre * 0.06;
-    if ((high - low) / 2 < minHalf) { low = centre - minHalf; high = centre + minHalf; }
+/** Plain text, not a chart — this is the one number that never moves with
+ *  sentiment: the trader will always transact at it. */
+function npcRateCell(trader) {
+  const bid = trader?.bid;
+  const ask = trader?.ask;
+  if (!Number.isFinite(bid) && !Number.isFinite(ask)) {
+    return [el('span', { class: 'muted', text: '—' })];
   }
-
-  const values = [low, high, traderAsk, traderBid, spotAsk, spotBid, marker]
-    .filter((v) => Number.isFinite(v));
-  if (values.length < 2) return el('div', { class: 'muted', text: 'Not enough data to draw a range.' });
-
-  const pad = { left: 10, right: 10, top: 8, bottom: 20 };
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = (max - min) || Math.max(max * 0.1, 1);
-  const lo = min - span * 0.12;
-  const hi = max + span * 0.12;
-  const x = (v) => pad.left + ((v - lo) / (hi - lo)) * (width - pad.left - pad.right);
-
-  const svg = svgEl('svg', {
-    width: '100%', height, viewBox: `0 0 ${width} ${height}`,
-    role: 'img', 'aria-label': 'Fair price corridor',
-  });
-
-  const trackY = pad.top + 12;
-  const trackH = 14;
-
-  svg.append(svgEl('rect', {
-    x: pad.left, y: trackY, width: width - pad.left - pad.right, height: trackH,
-    rx: 4, fill: 'var(--surface-2)',
-  }));
-
-  if (Number.isFinite(low) && Number.isFinite(high)) {
-    svg.append(svgEl('rect', {
-      x: x(low), y: trackY, width: Math.max(2, x(high) - x(low)), height: trackH,
-      rx: 4, fill: 'var(--status-good)', 'fill-opacity': 0.22,
-      stroke: 'var(--status-good)', 'stroke-opacity': 0.5,
-    }));
-  }
-
-  /**
-   * Labels collide whenever two markers land close together, which happens
-   * constantly on a tight spread. Rather than let text overlap into mush, drop
-   * the second label and let the shared one stand for the pair — the marks
-   * themselves still carry the values, and the tooltip has the detail.
-   */
-  const placeLabels = (entries, minGap, y, fallback) => {
-    const visible = entries.filter((e) => Number.isFinite(e.value));
-    const tooClose = visible.length === 2
-      && Math.abs(x(visible[0].value) - x(visible[1].value)) < minGap;
-    if (tooClose) {
-      const midpoint = (x(visible[0].value) + x(visible[1].value)) / 2;
-      const text = svgEl('text', { x: midpoint, y, class: 'tick', 'text-anchor': 'middle' });
-      text.textContent = fallback;
-      svg.append(text);
-      return;
-    }
-    for (const entry of visible) {
-      const text = svgEl('text', { x: x(entry.value), y, class: 'tick', 'text-anchor': 'middle' });
-      text.textContent = entry.label;
-      svg.append(text);
-    }
-  };
-
-  // Hard NPC bounds: 2px rules, ringed against the surface so they read on top.
-  for (const value of [traderBid, traderAsk]) {
-    if (!Number.isFinite(value)) continue;
-    svg.append(svgEl('line', {
-      x1: x(value), x2: x(value), y1: trackY - 4, y2: trackY + trackH + 4,
-      stroke: 'var(--surface-1)', 'stroke-width': 4,
-    }));
-    svg.append(svgEl('line', {
-      x1: x(value), x2: x(value), y1: trackY - 4, y2: trackY + trackH + 4,
-      stroke: 'var(--series-npc)', 'stroke-width': 2,
-    }));
-  }
-  placeLabels(
-    [{ value: traderBid, label: 'NPC pays' }, { value: traderAsk, label: 'NPC sells' }],
-    58, height - 6, 'NPC',
-  );
-
-  // Live market: ringed dots so overlapping marks stay separable.
-  for (const [value, colour] of [[spotBid, 'var(--series-bid)'], [spotAsk, 'var(--series-ask)']]) {
-    if (!Number.isFinite(value)) continue;
-    svg.append(svgEl('circle', {
-      cx: x(value), cy: trackY + trackH / 2, r: 5.5,
-      fill: colour, stroke: 'var(--surface-1)', 'stroke-width': 2,
-    }));
-  }
-  placeLabels(
-    [{ value: spotBid, label: 'Bid' }, { value: spotAsk, label: 'Ask' }],
-    30, trackY - 3, 'Bid/Ask',
-  );
-
-  if (Number.isFinite(marker)) {
-    const cx = x(marker);
-    svg.append(svgEl('path', {
-      d: `M ${cx} ${trackY + trackH + 2} l -5 8 l 10 0 z`,
-      fill: 'var(--text-primary)',
-    }));
-  }
-
-  return svg;
+  return [
+    el('div', { class: 'item-meta', text: `Buys ${formatGold(bid)}` }),
+    el('div', { class: 'item-meta', text: `Sells ${formatGold(ask)}` }),
+  ];
 }
 
 /* --------------------------------------------------------- history chart */
@@ -479,11 +376,7 @@ function renderOverview() {
       ]),
       el('td', { class: 'num', text: formatGold(row.spotAsk) }),
       el('td', { class: 'num', text: formatGold(row.spotBid) }),
-      el('td', {}, [corridorMeter({
-        low: row.fair?.low, high: row.fair?.high,
-        traderAsk: row.trader?.ask, traderBid: row.trader?.bid,
-        spotAsk: row.spotAsk, spotBid: row.spotBid,
-      }, { width: 220, height: 52 })]),
+      el('td', {}, npcRateCell(row.trader)),
       el('td', { class: `num ${trendClass}`, text: trendText }),
       el('td', {}, [el('span', { class: 'chip', text: row.liquidity?.level ?? 'none' })]),
       el('td', {}, [
@@ -556,6 +449,30 @@ function renderSources() {
 
 /* ------------------------------------------------------------------ detail */
 
+/**
+ * Plain rows, nothing derived — the objective NPC rate first (it's the one
+ * number that always transacts), then what the player market is actually
+ * doing over three progressively longer windows.
+ */
+function goingRatesRows(data) {
+  const row = (label, bid, ask) => {
+    if (!Number.isFinite(bid) && !Number.isFinite(ask)) return null;
+    return el('div', { class: 'tt-row', style: 'padding:3px 0' }, [
+      el('span', { class: 'muted', text: label }),
+      el('span', { text: `Buys ${formatGold(bid)} · Sells ${formatGold(ask)}` }),
+    ]);
+  };
+
+  const rows = [
+    row('NPC trader', data.trader?.bid, data.trader?.ask),
+    row('Right now', data.spot?.bid?.median, data.spot?.ask?.median),
+    row('Last 14 days', data.recent?.bid?.median, data.recent?.ask?.median),
+    row('Last 60 days', data.baseline?.bid?.median, data.baseline?.ask?.median),
+  ].filter(Boolean);
+
+  return rows.length ? rows : [el('div', { class: 'hero-note', text: 'No rates recorded yet.' })];
+}
+
 async function openDetail(row) {
   const dialog = $('#detail');
   $('#detail-title').textContent = row.item;
@@ -591,15 +508,8 @@ async function openDetail(row) {
         el('div', { class: 'hero-note', text: `${ref.source} · ${ref.confidence} confidence` }),
         el('div', { class: 'hero-note', text: ref.note }),
         el('div', { style: 'margin-top:16px' }, [
-          el('div', { class: 'label muted', style: 'font-size:12px;text-transform:uppercase', text: 'Fair corridor' }),
-          corridorMeter({
-            low: data.fair.low, high: data.fair.high,
-            traderAsk: data.trader.ask, traderBid: data.trader.bid,
-            spotAsk: data.spot.ask?.median, spotBid: data.spot.bid?.median,
-          }, { width: 340, height: 64 }),
-          el('div', { class: 'hero-note', text: data.fair.low && data.fair.high
-            ? `Trade between ${formatGold(data.fair.low)} and ${formatGold(data.fair.high)} to be fair to both sides.`
-            : 'Not enough two-sided data to set a corridor yet.' }),
+          el('div', { class: 'label muted', style: 'font-size:12px;text-transform:uppercase', text: 'Going rates' }),
+          ...goingRatesRows(data),
         ]),
         data.warnings?.length ? el('div', { class: 'verdict', style: 'margin-top:14px' }, [
           el('h3', {}, [el('span', { text: '⚠' }), el('span', { text: 'Read with care' })]),
@@ -686,14 +596,9 @@ async function runCheck() {
   mount(box, el('div', { class: 'verdict' }, [
     el('h3', {}, [ratingBadge(data.rating, data.label)]),
     el('div', { class: 'muted', text: `${intent === 'buy' ? 'Paying' : 'Asking'} ${formatGold(price)} for ${item}` }),
-    corridorMeter({
-      low: data.fair?.low, high: data.fair?.high,
-      traderAsk: null, traderBid: null,
-      spotAsk: null, spotBid: null,
-    }, { width: 320, height: 56, marker: price }),
     el('ul', {}, (data.reasons ?? []).map((r) => el('li', { text: r }))),
     (data.flags ?? []).includes('gouging') || (data.flags ?? []).includes('lowballing')
-      ? el('div', { class: 'chip', 'data-tone': 'warn', text: '⚠ Outside the fair corridor' })
+      ? el('div', { class: 'chip', 'data-tone': 'warn', text: '⚠ Unfair to the other side' })
       : null,
   ]));
 }

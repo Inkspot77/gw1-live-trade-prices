@@ -269,7 +269,10 @@ function sanityChecks({ spot, traderAsk, traderBid }) {
 }
 
 /**
- * The corridor inside which a trade is fair to *both* sides.
+ * The band inside which a trade is fair to *both* sides — an internal
+ * guardrail, not something surfaced to the user as its own concept. It backs
+ * the buy/sell verdict's lowballing/gouging warnings and caps the suggested
+ * price on sell alerts; the UI just shows plain going rates.
  *
  * The lower edge protects the person you are buying from: pay less than the
  * quartile of standing bids and you are exploiting a seller who has not checked
@@ -412,15 +415,15 @@ export function evaluatePrice(analysis, price, intent) {
   if (buying && low !== null && price < low) {
     flags.push('lowballing');
     reasons.push(
-      `Below the fair corridor (${Math.round(low)}g). This is a good price for you, but it undercuts standing bids — `
-      + 'expect to be turned down, and consider offering nearer the corridor.',
+      `Below what buyers are currently offering (${Math.round(low)}g). This is a good price for you, but it `
+      + 'undercuts standing bids — expect to be turned down, and consider offering closer to the going rate.',
     );
   }
   if (!buying && high !== null && price > high) {
     flags.push('gouging');
     reasons.push(
-      `Above the fair corridor (${Math.round(high)}g). You may find a buyer, but this is priced above what the `
-      + 'market is actually paying.',
+      `Above what sellers are currently asking (${Math.round(high)}g). You may find a buyer, but this is priced `
+      + 'above what the market is actually paying.',
     );
   }
   if (analysis.liquidity.level === 'thin' || analysis.liquidity.level === 'none') {
