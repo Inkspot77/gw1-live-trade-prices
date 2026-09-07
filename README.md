@@ -54,7 +54,7 @@ This repository doubles as an Obsidian vault for comprehensive documentation. Op
 - **[README](README.md)** - Project overview and quick start
 - **[CONTRIBUTING](CONTRIBUTING.md)** - How to contribute to this project
 - **[CHANGELOG](CHANGELOG.md)** - Version history and release notes
-- **[DEPLOY](deploy/DEPLOY.md)** - Hosting on Ubuntu server
+- **[DEPLOY](deploy/DEPLOY.md)** - Plain-language setup: an Ubuntu server, or running locally on Windows
 
 ---
 
@@ -262,9 +262,10 @@ lives in a named volume so it survives rebuilds.
 
 To watch a synced GWToolbox inventory folder, uncomment the two `# ` lines
 near `WATCH_DIR` in `docker-compose.yml` and point the bind mount at wherever
-your sync tool lands the export (see Part 2 of [DEPLOY.md](deploy/DEPLOY.md)
-for Syncthing / CIFS / scheduled-push options — the container side is
-identical either way).
+your sync tool lands the export (see ["tracking your inventory when using the
+server"](deploy/DEPLOY.md#optional--tracking-your-inventory-when-using-the-server)
+in DEPLOY.md for the Syncthing setup — the container side is identical
+either way).
 
 To seed 90 days of NPC trader history once, before first use:
 
@@ -288,13 +289,20 @@ rather than assumed:
   force-kills every time. Measured: 10s (killed) without `init: true`, 0.3s
   (clean exit) with it.
 
+### Plain-language install guide
+
+[DEPLOY.md](deploy/DEPLOY.md) is a no-background-assumed walkthrough covering
+two full setups: hosting on an Ubuntu server with Docker (the same Docker path
+above, spelled out step by step, including the LAN/HTTPS profile and syncing
+the inventory export from a Windows Guild Wars install), or just running the
+dashboard directly on the Windows PC you play on, with no server at all.
+
 ### Bare metal / systemd
 
-`deploy/` holds a systemd unit, a preflight checker, and
-[DEPLOY.md](deploy/DEPLOY.md) — a walkthrough for hosting the dashboard on an
-Ubuntu box and syncing the inventory export from a Windows Guild Wars install
-(Syncthing, a CIFS mount, or a scheduled push). The Windows-sync half of that
-guide applies identically whichever way you run the dashboard itself.
+`deploy/` also holds a systemd unit (`gw1-prices.service`) and a preflight
+checker (`preflight.sh`) for running the plain Node process as a service
+instead of in a container — a manual setup, not currently walked through
+step by step; the comments in each file are the reference for it.
 
 ## The two economies never mix
 
@@ -356,7 +364,7 @@ light and dark themes.
 - **[Obsidian View Guide](docs/OBSIDIAN-VIEW.md)** - How to use this repository as an Obsidian vault
 - **[Contributing](CONTRIBUTING.md)** - How to contribute to this project
 - **[Changelog](CHANGELOG.md)** - Version history and release notes
-- **[Deploy Guide](deploy/DEPLOY.md)** - Hosting on Ubuntu server
+- **[Deploy Guide](deploy/DEPLOY.md)** - Plain-language setup: an Ubuntu server, or running locally on Windows
 
 ---
 

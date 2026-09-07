@@ -1,287 +1,343 @@
-# Hosting on an Ubuntu server, synced from the Windows GW box
+# Setting Up GW1 Live Trade Prices
 
-Two halves: get the dashboard running as a service on Ubuntu, then get the
-Toolbox inventory export off Windows and onto it.
+This guide has no assumed background — it explains every term the first time
+it comes up. There are two ways to run the dashboard; pick whichever fits:
 
-**Prefer a container?** `docker compose up -d --build` from the project root
-handles all of Part 1 — see the Docker section in the top-level README. Part 2
-below (getting the Toolbox export from Windows onto this box) applies exactly
-the same either way; only the *target* the sync points at changes, from
-`/srv/gw1-sync/inventories` to whatever host path you bind-mount into the
-container.
+- **[Option 1: Install on a server](#option-1-install-on-an-ubuntu-server)** —
+  it runs all the time, and anyone on your home network can check prices from
+  their phone, laptop, or the same PC. This is the better choice if more than
+  one person wants to use it, or you want it running even when your gaming PC
+  is off.
+- **[Option 2: Run it on your own Windows PC](#option-2-run-it-on-your-windows-pc)**
+  — the simplest possible setup. It only runs while you have it open on that
+  one computer, and only that computer can see it, but there's no server to
+  manage and no syncing to set up — it reads your Guild Wars inventory
+  straight off the same machine.
+
+Both give you the exact same dashboard; this is only about *where* it lives.
 
 ---
 
-## Part 1 — the Ubuntu server
+## Option 1: Install on an Ubuntu server
 
-### 1. Node 22.13 or newer
+You'll need a computer running Ubuntu that stays on, and the ability to open
+a **terminal** on it — either sitting at it directly, or connecting to it
+remotely over **SSH** (a way to type commands on another computer from your
+own, like a remote-control window for text). If you don't already have SSH
+access set up, that's a one-time setup on its own — ask whoever manages the
+server, or search "generate SSH key and copy to server" for your specific
+setup.
 
-This is the one thing that actually blocks. `node:sqlite` is behind
-`--experimental-sqlite` on Node 22.5-22.12 and unflagged only from **22.13.0**
-(and 23.4.0). Ubuntu's `apt` Node is usually older than that, so install from
-NodeSource:
+Everything below is typed into that terminal, on the server.
 
-```bash
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt-get install -y nodejs
-node --version          # expect v22.13.0 or newer
-```
+### Step 1 — Install Docker
 
-`nvm` works too, but a systemd unit then has to point at a versioned binary
-path, which breaks quietly on upgrade. NodeSource keeps `/usr/bin/node` correct.
-
-### 2. Get the code onto the box
-
-There are no dependencies and no build step, so a plain copy is enough:
+The dashboard runs inside **Docker** — think of it as a sealed box that
+contains the app and everything it needs, so you don't have to install or
+configure anything else by hand. One command installs it:
 
 ```bash
-# from your workstation
-rsync -a --exclude data/prices.db --exclude .freebuff --exclude .git \
-  ./ youruser@server:/tmp/gw1-prices/
-
-# on the server
-sudo mkdir -p /opt/gw1-prices
-sudo cp -r /tmp/gw1-prices/. /opt/gw1-prices/
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
 ```
 
-Do **not** run `npm install` — there is no lockfile and nothing to fetch.
-
-### 3. A service account
+Then let your user run Docker commands without typing `sudo` every time:
 
 ```bash
-sudo useradd --system --home /opt/gw1-prices --shell /usr/sbin/nologin gw1
-sudo mkdir -p /opt/gw1-prices/data /srv/gw1-sync/inventories
-sudo chown -R gw1:gw1 /opt/gw1-prices /srv/gw1-sync
+sudo usermod -aG docker $USER
 ```
 
-### 4. Check before you install
+**Log out and back in** (close and reopen your terminal / SSH session) for
+that to take effect. Confirm it worked:
 
 ```bash
-sudo -u gw1 bash /opt/gw1-prices/deploy/preflight.sh /srv/gw1-sync/inventories
+docker compose version
 ```
 
-It verifies the Node version, that `node:sqlite` loads unflagged, that all five
-price sources are reachable, and that the watch folder is readable — including
-whether its filesystem supports change events.
+If that prints a version number instead of an error, you're set.
 
-### 5. Seed the price history
+### Step 2 — Get the project files onto the server
 
-Worth doing once, before the service starts. It pulls ~90 days of NPC trader
-history so materials have a real baseline immediately instead of accumulating
-one over three months:
+If you have `git` and access to the GitHub repository:
 
 ```bash
-sudo -u gw1 node /opt/gw1-prices/bin/gw1-prices.mjs --backfill --port 8788
+git clone https://github.com/Inkspot77/gw1-live-trade-prices.git gw1-prices
+cd gw1-prices
 ```
 
-**Do not add `--no-poll` here.** `--backfill` only runs inside the same
-startup branch as the regular poll, so `--no-poll --backfill` together is a
-silent no-op that contacts nothing and backfills nothing. `--backfill` alone
-does one full poll of every source, then the 90-day trader-history seed, then
-starts serving normally. `--port 8788` just keeps this one-off run off 8787 in
-case the real service is already up; it is otherwise unused.
+(The repository is private, so `git` will ask you to log in — use a
+[personal access token](https://github.com/settings/tokens) as the password
+if it asks for one.)
 
-It is rate-limited and resumable. If it reports failures, run it again — it
-skips whatever already completed. Ctrl-C once the backfill summary prints.
+If you don't use `git`, download the code as a ZIP from the green **Code**
+button on the GitHub page instead, transfer it to the server (e.g. with
+`scp` from your own computer, or a tool like WinSCP/FileZilla), and unzip it
+into a folder there.
 
-### 6. Install the service
+### Step 3 — Build and start it
+
+From inside that folder:
 
 ```bash
-sudo cp /opt/gw1-prices/deploy/gw1-prices.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now gw1-prices
-journalctl -u gw1-prices -f
+docker compose --profile lan up -d --build
 ```
 
-The HTTP port opens before the first poll finishes, so the dashboard answers
-immediately even though that first poll takes 25-30 seconds.
+The first run downloads and builds everything, which takes a few minutes.
+`-d` means it keeps running in the background after the command finishes.
+`--profile lan` turns on the part that makes the dashboard reachable from
+other devices on your network, with a lock (HTTPS) and a password — covered
+next.
 
-### 7. Reaching it
+Check it's running:
 
-**The app has no authentication unless you turn it on.** The POST endpoints
-change stored state, so `--host 0.0.0.0` only makes sense on a network you
-trust, or with one of the auth options below.
+```bash
+docker compose ps
+```
 
-- **Trusted home LAN** — leave it, browse to `http://server-ip:8787`.
-- **A password gate on the app itself, no reverse proxy** — set `AUTH_USER`
-  and `AUTH_PASS` (both, or neither — the process refuses to start if only
-  one is set). The shipped unit has a commented-out `EnvironmentFile=` line
-  for this; uncomment it and write the two vars to the file it points at
-  (`chmod 600`, so only root and the `gw1` service user can read it):
+You want to see two entries, both `Up` (or `healthy`) — one named
+`gw1-prices`, one named `caddy`.
 
-  ```bash
-  install -m 600 /dev/null /etc/gw1-prices.env
-  printf 'AUTH_USER=alan\nAUTH_PASS=something-long-and-unique\n' \
-    | tee /etc/gw1-prices.env >/dev/null
-  systemctl edit gw1-prices   # or edit the unit directly, then daemon-reload
-  ```
+### Step 4 — Set a real password
 
-  This is genuinely simple — one file, no second container, no certificate —
-  but **Basic Auth is base64 in transit, not encryption**. It stops a stranger
-  who finds the port from getting in; it does not stop anyone who can see the
-  raw traffic from reading the password off the wire. Only rely on it alone
-  over a transport that is already encrypted (an SSH tunnel, a Tailscale or
-  WireGuard link). Over plain HTTP on the open internet, pair it with the
-  Caddy setup below instead, which actually terminates TLS.
-- **LAN, with a password** — the compose `lan` profile starts a Caddy that
-  owns host port 8787, terminates **HTTPS** with its own internal CA, and
-  demands basic auth before proxying to the dashboard (`deploy.sh --lan`
-  deploys it). Change the password by running
-  `docker run --rm caddy:2-alpine caddy hash-password --plaintext 'newpass'`
-  and putting the new hash in `Caddyfile`. This is the safe way to expose it
-  beyond loopback when the LAN is not fully trusted.
+Out of the box, the password is a placeholder that doesn't work — this is
+deliberate, so nobody accidentally ships a real password in the project
+files. Set your own:
 
-  The certificate covers `utility` and `utility.example.ts.net` (Tailscale
-  MagicDNS — edit `Caddyfile` to use your own tailnet's name). To make
-  browsers stop warning, trust the CA root on each client
-  (pull it from the server, then install it in the device's trust store):
+```bash
+docker run --rm caddy:2-alpine caddy hash-password --plaintext 'ChooseYourOwnPassword'
+```
+
+Replace `ChooseYourOwnPassword` with an actual password you'll remember —
+keep the quotes. This prints one long line starting with `$2a$...` — that's
+your password, scrambled in a one-way way (a **hash**) so it's safe to store
+in a file. Copy that whole line.
+
+Open the file named `Caddyfile` in the project folder with a text editor
+(`nano Caddyfile` works fine in the terminal), find the line that looks like:
+
+```
+alan <bcrypt-hash-generate-your-own>
+```
+
+Change `alan` to whatever username you want to log in with, and replace
+`<bcrypt-hash-generate-your-own>` with the line you copied. Save and close.
+
+Now tell the dashboard to pick up the change:
+
+```bash
+docker compose --profile lan up -d --force-recreate caddy
+```
+
+(Use `--force-recreate` here, specifically — a plain `up -d --build` doesn't
+reliably notice that only the password file changed and can leave the old
+password running. `--force-recreate` guarantees it actually reloads.)
+
+### Step 5 (optional, but recommended) — Load historical prices
+
+This fills in ~90 days of past trader prices immediately, instead of the
+dashboard slowly building up history on its own over the next three months:
+
+```bash
+docker compose --profile tools run --rm backfill
+```
+
+This takes a few minutes and prints a summary line when it's done — safe to
+walk away from.
+
+### Step 6 — Trust the security certificate
+
+Because this is a home server, not a public website, the "lock" (HTTPS) it
+uses is signed by a certificate your devices don't automatically trust yet —
+your browser will warn you the first time. Two ways to handle it:
+
+- **Easiest — just click through the warning.** Most browsers let you click
+  "Advanced" → "Proceed anyway" the first time you visit. It'll remember your
+  choice for that browser/site after that.
+- **Cleaner — install the certificate so the warning never shows.** Get the
+  certificate off the server:
 
   ```bash
   docker exec gw1-prices-caddy-1 cat /data/caddy/pki/authorities/local/root.crt
   ```
 
-  - **Windows** — `certmgr.msc` → Trusted Root Certification Authorities → Import.
-  - **macOS** — open the `.crt` in Keychain Access, set it to "Always Trust".
-  - **Linux** — copy to `/usr/local/share/ca-certificates/` then
+  Save that output as a `.crt` file and add it to your device's trusted
+  certificates:
+  - **Windows:** double-click the file → Install Certificate → Local Machine
+    → "Place all certificates in the following store" → Trusted Root
+    Certification Authorities.
+  - **macOS:** open the file in Keychain Access, then double-click the new
+    entry and set Trust to "Always Trust".
+  - **Linux:** copy it to `/usr/local/share/ca-certificates/`, then run
     `sudo update-ca-certificates`.
-  - **Android/iOS** — install the CA as a profile in settings.
+  - **Android/iPhone:** install it as a profile/certificate in Settings.
 
-  Then browse to `https://utility:8787` (add `<server-lan-ip> utility` to the
-  client's hosts file if the router does not resolve the name) or
-  `https://utility.example.ts.net:8787` from tailnet devices.
-- **Anything less trusted** — drop `--host 0.0.0.0` so it binds loopback only,
-  and tunnel in:
-  `ssh -N -L 8787:127.0.0.1:8787 gw1-server`, then use `http://127.0.0.1:8787`.
-- **On a hostname, with auth** — put Caddy in front:
+### Step 7 — Make the address work
 
-  ```caddyfile
-  gw1.lan {
-      basic_auth { alan <bcrypt-hash> }
-      reverse_proxy 127.0.0.1:8787
-  }
-  ```
+The Caddyfile uses the name `utility` by default. Something on your network
+needs to know that `utility` means "this server" — pick one:
+
+- **You run a network-wide DNS service (AdGuard Home, Pi-hole, your router's
+  admin page):** add a DNS rewrite/entry mapping `utility` to the server's
+  address (e.g. `192.168.1.46`). Every device on your network picks this up
+  automatically — nothing else to do per-device.
+- **No network-wide DNS:** edit the **hosts file** on each device you want to
+  use, adding a line like `192.168.1.46 utility`:
+  - **Windows:** `C:\Windows\System32\drivers\etc\hosts` (edit with Notepad
+    "Run as administrator").
+  - **macOS/Linux:** `/etc/hosts` (`sudo nano /etc/hosts`).
+
+Then browse to `https://utility:8787` and log in with the username/password
+from Step 4. That's it — you're in.
+
+If you use **Tailscale** (a private network between your devices, reachable
+from anywhere, not just home), the Caddyfile also has a Tailscale hostname
+placeholder near the top — edit it to match your own tailnet's name for the
+server, then repeat Step 6's certificate step and browse to that name instead.
+
+### Updating later
+
+```bash
+cd gw1-prices
+git pull                                       # or download+unzip a fresh copy
+docker compose --profile lan up -d --build
+```
+
+This leaves your password alone — it only touches the app itself, not
+`Caddyfile`.
+
+### Optional — tracking your inventory when using the server
+
+If you want the server to show what your items are worth, it needs to see
+your GWToolbox inventory export — but that file is written on your Windows
+gaming PC, not the server. You need to get it from one to the other
+automatically. (If this sounds like more setup than you want, [running the
+dashboard directly on Windows](#option-2-run-it-on-your-windows-pc) instead
+skips this entirely, since there's nothing to transfer.)
+
+The easiest way is **Syncthing** — a free program that keeps a folder
+identical on two computers, automatically, in the background:
+
+1. Install Syncthing on both the Windows PC and the Ubuntu server (on
+   Ubuntu: `sudo apt-get install -y syncthing`).
+2. On Windows, add your GWToolbox `inventories` folder as a shared folder in
+   Syncthing, and set its type to **"Send Only"** — this guarantees nothing
+   ever gets written back into your Guild Wars files from the server side.
+   The folder is here:
+   ```
+   %USERPROFILE%\Documents\GWToolboxpp\<YOUR-COMPUTER-NAME>\configs\default\inventories
+   ```
+3. On the server, accept the shared folder Syncthing offers you, pick a
+   destination folder (e.g. `/srv/gw1-sync/inventories`), and set its type to
+   **"Receive Only"**.
+4. Point the dashboard at that folder — either edit the `WATCH_DIR` line in
+   `docker-compose.yml` (uncomment the two lines near it and set the path to
+   the folder above), or set it directly in the dashboard under **Your
+   inventory → watch a folder**, then run
+   `docker compose --profile lan up -d --build` again if you edited the file.
+
+Changes on Windows usually show up on the server within a minute. Two other
+ways exist for people who don't want to install Syncthing (mounting the
+Windows folder directly over the network, or a scheduled copy job) — both
+work but need more manual setup; ask if you'd like those steps instead.
 
 ---
 
-## Part 2 — syncing the inventory from Windows
+## Option 2: Run it on your Windows PC
 
-### Where the file lives on Windows
+This runs the dashboard directly on the same computer you play Guild Wars
+on — no server, no networking to configure, and no syncing, since the
+dashboard can read your inventory export straight from disk.
 
-GWToolbox writes under **Documents**, namespaced by computer name and config:
+### Step 1 — Install Node.js
 
-```
-%USERPROFILE%\Documents\GWToolboxpp\<COMPUTER-NAME>\configs\default\inventories\
-```
+Node.js is the program that runs the dashboard. Download it from
+[nodejs.org](https://nodejs.org) — get version **22.13 or newer** (the
+"Current" download is usually newer than that; the "LTS" download sometimes
+isn't, so check the version number before installing). Run the installer,
+accepting the defaults.
 
-`default` is the config name — with a named Toolbox config it is
-`configs\<that-name>` instead. Browse there and confirm you can see a
-`tmp<account-guid>.json` before setting up any sync. If the folder is empty, log
-in and zone into an outpost once; Toolbox writes on outpost map load.
-
-### Option A — Syncthing (recommended)
-
-Best fit here: survives reboots and IP changes, needs no share permissions, and
-keeps working if the two machines end up on different networks.
-
-1. Install Syncthing on both. On Ubuntu, run it as the service account so files
-   land with the right owner:
-
-   ```bash
-   sudo apt-get install -y syncthing
-   sudo loginctl enable-linger gw1
-   sudo -u gw1 XDG_RUNTIME_DIR=/run/user/$(id -u gw1) systemctl --user enable --now syncthing
-   ```
-
-2. On Windows, add the `inventories` folder above as a share, and set **Folder
-   Type: Send Only**. That matters — it stops anything on the Linux side ever
-   propagating back into your Toolbox settings.
-3. On Ubuntu, accept the share, point it at `/srv/gw1-sync/inventories`, and set
-   **Receive Only**.
-4. Add `*.tmp` and `~*` to the folder's ignore patterns to cut the noise.
-
-Expect a lag of seconds to a minute: Syncthing propagates a file once the
-writing process releases it, not while Toolbox holds it open.
-
-### Option B — mount the Windows share over CIFS
-
-Fewer moving parts, but the Windows box has to be on whenever you want fresh
-data.
-
-1. On Windows, share the `inventories` folder read-only.
-2. On Ubuntu, keep the credentials out of the mount table:
-
-   ```bash
-   sudo install -m 600 /dev/null /etc/gw1-smb.cred
-   sudo tee /etc/gw1-smb.cred >/dev/null <<'EOF'
-   username=YourWindowsUser
-   password=YourWindowsPassword
-   EOF
-   ```
-
-3. Add to `/etc/fstab` as a single line, then `sudo mount -a`:
-
-   ```
-   //WINDOWS-PC/inventories /srv/gw1-sync/inventories cifs credentials=/etc/gw1-smb.cred,ro,uid=gw1,gid=gw1,iocharset=utf8,nofail,x-systemd.automount,_netdev 0 0
-   ```
-
-   `nofail` and `x-systemd.automount` matter: without them the Ubuntu box hangs
-   at boot whenever the Windows machine is off.
-
-**Note:** inotify events do not cross CIFS, so `fs.watch` sees nothing here. The
-dashboard's 10-second stat poll is what picks up changes, and the watch status
-line says so explicitly. That is expected, not a fault.
-
-### Option C — push from Windows on a schedule
-
-Nothing to install beyond OpenSSH, which ships with Windows. A Task Scheduler
-job at logon:
+Confirm it worked — open **PowerShell** (search for it in the Start menu)
+and type:
 
 ```powershell
-$src = "$env:USERPROFILE\Documents\GWToolboxpp\$env:COMPUTERNAME\configs\default\inventories"
-while ($true) {
-    scp -q "$src\tmp*.json" gw1@server:/srv/gw1-sync/inventories/
-    Start-Sleep -Seconds 60
-}
+node --version
 ```
 
-Crude, but dependency-free and easy to reason about.
+You want `v22.13.0` or higher.
 
-### Point the dashboard at it
+### Step 2 — Get the project files
 
-Either edit `--watch` in the unit file, or set it in the UI under **Your
-inventory → watch a folder**. The path is stored in the database, so it comes
-back on its own after a restart.
+Download the code as a ZIP from the green **Code** button on the GitHub
+repository page, then extract it somewhere memorable, like
+`C:\Users\YourName\gw1-prices`.
 
-The status line under the field tells you which mechanism is live:
+### Step 3 — Start it
 
-> ● Watching for changes, and re-checking every 10s.
+In PowerShell:
 
-versus, on a CIFS mount:
+```powershell
+cd C:\Users\YourName\gw1-prices
+npm start
+```
 
-> ● Re-checking every 10s (this filesystem sends no change events).
+The first line it prints will say something like
+`GW1 price dashboard -> http://0.0.0.0:8787`. Leave this window open — closing
+it stops the dashboard. Open a browser and go to `http://localhost:8787`.
+
+### Step 4 — Point it at your inventory
+
+In the dashboard, under **Your inventory → watch a folder**, paste in your
+GWToolbox export folder:
+
+```
+%USERPROFILE%\Documents\GWToolboxpp\<YOUR-COMPUTER-NAME>\configs\default\inventories
+```
+
+(Replace `<YOUR-COMPUTER-NAME>` with your actual PC name — you can see the
+real path by opening File Explorer, going to
+`Documents\GWToolboxpp`, and looking at the folder names there. `default` is
+the name of your GWToolbox config; it'll be different if you've named yours
+something else.) The dashboard remembers this setting and picks it up
+automatically every time it starts.
+
+### Starting it again later
+
+You don't need to repeat any of the setup — just:
+
+```powershell
+cd C:\Users\YourName\gw1-prices
+npm start
+```
+
+each time you want the dashboard running.
 
 ---
 
 ## Backups
 
-Everything that matters is one file: `/opt/gw1-prices/data/prices.db`. It holds
-the accumulated price history, which **cannot be re-fetched** — the upstream
-sources only expose a live window. Snapshot it safely while the service runs:
+The one thing that can't be re-downloaded if lost is your accumulated price
+history — everything else rebuilds itself automatically.
 
-```bash
-sudo -u gw1 sqlite3 /opt/gw1-prices/data/prices.db \
-  ".backup '/var/backups/gw1-$(date +%F).db'"
-```
+- **Server (Docker):**
 
-(`apt-get install -y sqlite3` if needed; the dashboard itself does not require
-the CLI.)
+  ```bash
+  docker run --rm -v gw1-prices_gw1-data:/data -v "$PWD:/backup" alpine \
+    tar czf "/backup/gw1-backup-$(date +%F).tar.gz" -C /data .
+  ```
+
+  Run this from the project folder; it creates a dated `.tar.gz` file there.
+
+- **Windows:** close the dashboard window first (so nothing is mid-write),
+  then copy the whole `data` folder inside the project folder somewhere safe.
 
 ## Troubleshooting
 
-| Symptom | Cause |
+| Symptom | What it means |
 | --- | --- |
-| `ERR_UNKNOWN_BUILTIN_MODULE: node:sqlite` | Node older than 22.13. |
-| Service restarts in a loop | Port already taken; `journalctl -u gw1-prices -n 20` says so plainly. |
-| Inventory never updates | Read the watch status line. If it says "no change events" the poll is running, so the file is not arriving — check sync, not the dashboard. |
-| All sources red | Outbound HTTPS blocked. Re-run `preflight.sh`. |
-| Dashboard empty after a move | `data/prices.db` was not copied, or is owned by the wrong user. |
+| `docker compose ps` shows `caddy` as `Restarting` | The password hash in `Caddyfile` is missing or malformed — redo Step 4. Check with `docker compose logs caddy --tail 20`; a line mentioning "base64" confirms it. |
+| Changed the password but the old one (or the placeholder) still doesn't work | You need `docker compose --profile lan up -d --force-recreate caddy` specifically — a plain rebuild can leave the old password running. |
+| Browser says the site can't be found / name not resolved | The hostname (`utility` or your Tailscale name) isn't set up on that device yet — see Step 7. |
+| Certificate warning in the browser | Expected the first time — see Step 6. Click through, or install the certificate to make it stop. |
+| `node --version` is older than 22.13 | Reinstall Node.js from nodejs.org, choosing the "Current" download rather than "LTS" if LTS is behind. |
+| Dashboard is empty / shows no prices right after install | Normal for the first ~30 seconds while it does its first check of all price sources. Run the optional backfill step (Option 1, Step 5) for instant history. |
+| Inventory never updates (Windows) | Confirm the folder path in Step 4 is exactly right, and that you've logged into Guild Wars and visited an outpost at least once since installing GWToolbox — it only writes the file on zoning into a town/outpost. |
