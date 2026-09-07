@@ -1,8 +1,9 @@
 # GW1 Live Trade Prices
 
-<img width="1296" height="1190" alt="screenshot-2026-08-23_21-31-34" src="https://github.com/user-attachments/assets/80ad7a94-a20d-4257-a533-89455c2bd2d7" />
-<img width="1238" height="1136" alt="screenshot-2026-08-23_21-31-58" src="https://github.com/user-attachments/assets/2d6471ae-841f-48de-95ed-098137446dc3" />
-<img width="1291" height="1106" alt="screenshot-2026-08-23_21-32-51" src="https://github.com/user-attachments/assets/0c08fb11-bb8a-4e34-bf81-d3bd142124bb" />
+<img width="1291" height="1106" alt="screenshot-2026-08-23_21-32-51" src="https://github.com/user-attachments/assets/a117d14f-0268-402a-994b-dcbdad584e8a" />
+<img width="1238" height="1136" alt="screenshot-2026-08-23_21-31-58" src="https://github.com/user-attachments/assets/cf6f6e6e-afb4-475d-8d7a-aab4430bda26" />
+<img width="1296" height="1190" alt="screenshot-2026-08-23_21-31-34" src="https://github.com/user-attachments/assets/adb5d301-76dc-4844-b43a-9369b26dca1d" />
+
 
 
 
