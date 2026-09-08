@@ -9,6 +9,17 @@ const state = {
   overview: [],
   context: null,
   selected: null,
+  inventory: null,
+  alerts: null,
+  collapsed: {},
+  startCollapsed: true,
+  allCollapsed: true,
+};
+
+/** Opportunities are grouped by item type; sheet categories are "Sheet / Sub". */
+const groupKey = (row) => {
+  const category = row.category ?? 'Other';
+  return category.includes('/') ? category.split('/')[0].trim() : category;
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -303,51 +314,133 @@ function signalFor(row) {
   return ratingBadge('fair', 'Normal');
 }
 
-function renderTiles() {
+function renderStrip() {
   const ctx = state.context;
-  const tiles = $('#tiles');
+  const box = $('#strip');
   if (!ctx) return;
 
-  const stats = ctx.stats ?? {};
-  const cards = [
+  const inventory = state.inventory;
+  const open = state.alerts?.open ?? [];
+  const edge = open.reduce((total, a) => total + (a.peak_edge ?? 0), 0);
+
+  const cells = [
     {
-      label: 'Ecto rate',
-      value: formatGold(ctx.rates?.ecto),
-      note: 'Post-Searing reserve currency (NPC trader)',
+      label: 'Portfolio',
+      value: inventory?.total ? formatGold(inventory.total) : '—',
+      note: inventory?.total ? (formatNative(inventory.total, 'post') ?? '') : 'no inventory imported',
     },
     {
-      label: 'Black Dye rate',
-      value: formatGold(ctx.rates?.blackDye),
-      note: 'Pre-Searing reserve currency (price guide)',
+      label: 'Sell now',
+      value: String(open.length),
+      note: open.length ? `+${formatGold(edge)} above an average day` : 'nothing unusual right now',
+      good: open.length > 0,
     },
+    { label: 'Ecto', value: formatGold(ctx.rates?.ecto), note: 'NPC trader' },
+    { label: 'Black Dye', value: formatGold(ctx.rates?.blackDye), note: 'price guide' },
     {
-      label: 'Nicholas Sandford',
+      label: 'Nicholas',
       value: ctx.sandford?.item ?? '—',
-      note: 'Pre-Searing collectable, rotates daily',
-    },
-    {
-      label: 'Nicholas the Traveler',
-      value: ctx.traveler?.item ?? '—',
-      note: ctx.traveler
-        ? `${ctx.traveler.qtyPerGift}/gift · ${ctx.traveler.nicksetQty} per nickset`
-        : 'Post-Searing collectable, rotates weekly',
-    },
-    {
-      label: 'Observations stored',
-      value: (stats.observations ?? 0).toLocaleString('en-US'),
-      note: stats.oldest ? `since ${relativeTime(stats.oldest)}` : 'collecting…',
+      note: ctx.traveler ? `traveler: ${ctx.traveler.item}` : 'rotates daily',
     },
   ];
 
-  tiles.replaceChildren(...cards.map((c) => el('div', { class: 'tile' }, [
-    el('div', { class: 'label', text: c.label }),
-    el('div', { class: 'value', text: c.value }),
-    el('div', { class: 'note', text: c.note }),
+  box.replaceChildren(...cells.map((c) => el('div', { class: 'strip-cell' }, [
+    el('span', { class: 'label', text: c.label }),
+    el('span', { class: c.good ? 'value good' : 'value', text: c.value }),
+    el('span', { class: 'note', text: c.note }),
   ])));
 }
 
+function overviewRow(row) {
+  const trendClass = row.trend?.direction === 'up' ? 'trend-up'
+    : row.trend?.direction === 'down' ? 'trend-down' : 'trend-flat';
+  const trendText = row.trend?.pct === null || row.trend?.pct === undefined
+    ? '—'
+    : `${row.trend.pct >= 0 ? '▲' : '▼'}${Math.abs(row.trend.pct).toFixed(0)}%`;
+
+  const native = formatNative(row.reference?.value, row.realm);
+  const score = row.opportunity ?? 0;
+
+  const tr = el('tr', { class: 'row', tabindex: '0' }, [
+    el('td', {}, [
+      el('div', { class: 'item-name', text: row.item }),
+      el('div', {
+        class: 'item-meta',
+        text: `${row.realm === 'pre' ? 'Pre' : 'Post'} · ${row.liquidity?.quotes ?? 0} quotes · ${row.liquidity?.level ?? 'none'}`,
+      }),
+    ]),
+    el('td', { class: 'num' }, [
+      el('div', { text: formatGold(row.reference?.value) }),
+      native ? el('div', { class: 'item-meta', text: native }) : null,
+    ]),
+    el('td', { class: 'num spread' }, [
+      el('span', { class: 'bid', text: formatGold(row.spotBid) }),
+      el('span', { class: 'sep', text: ' / ' }),
+      el('span', { class: 'ask', text: formatGold(row.spotAsk) }),
+    ]),
+    el('td', {}, npcRateCell(row.trader)),
+    el('td', { class: `num ${trendClass}`, text: trendText }),
+    el('td', {}, [
+      el('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
+        signalFor(row),
+        row.sampleSize ? el('span', { class: 'sigma', text: `${score >= 0 ? '+' : ''}${score.toFixed(1)}σ` }) : null,
+      ]),
+      row.demand?.active ? el('span', { class: 'chip', 'data-tone': 'demand', text: '★ in demand' }) : null,
+      row.warnings?.length
+        ? el('span', {
+          class: 'chip', 'data-tone': 'warn', title: row.warnings.map((w) => w.message).join(' '),
+          text: '⚠ unreliable',
+        })
+        : null,
+    ]),
+  ]);
+
+  tr.addEventListener('click', () => openDetail(row));
+  tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') openDetail(row); });
+  return tr;
+}
+
+/**
+ * One tbody per item type. The header row answers "is there anything in here?"
+ * without expanding it: how many items are cheap, how many are expensive, and
+ * which single item carries the strongest signal.
+ */
+function groupBody(name, items) {
+  const collapsed = state.collapsed[name] ?? state.startCollapsed;
+  const sorted = [...items].sort((a, b) => Math.abs(b.opportunity ?? 0) - Math.abs(a.opportunity ?? 0));
+  const cheap = items.filter((r) => (r.opportunity ?? 0) >= 0.5).length;
+  const rich = items.filter((r) => (r.opportunity ?? 0) <= -0.5).length;
+  const top = sorted[0];
+
+  const header = el('tr', { class: 'group' }, [
+    el('td', { colspan: '3' }, [
+      el('span', { class: 'group-name' }, [
+        el('span', { class: 'caret', text: collapsed ? '▶' : '▼' }),
+        el('span', { class: 'title', text: name }),
+        el('span', { class: 'count', text: `${items.length} item${items.length === 1 ? '' : 's'}` }),
+      ]),
+    ]),
+    el('td', { colspan: '3', class: 'num' }, [
+      el('span', { class: 'group-summary' }, [
+        cheap ? el('span', { class: 'pill' }, [el('span', { class: 'dot cheap' }), el('span', { text: `${cheap} cheap` })]) : null,
+        rich ? el('span', { class: 'pill' }, [el('span', { class: 'dot rich' }), el('span', { text: `${rich} expensive` })]) : null,
+        top ? el('span', {
+          class: 'best',
+          text: `strongest: ${top.item} ${(top.opportunity ?? 0) >= 0 ? '+' : ''}${(top.opportunity ?? 0).toFixed(1)}σ`,
+        }) : null,
+      ]),
+    ]),
+  ]);
+  header.addEventListener('click', () => {
+    state.collapsed[name] = !collapsed;
+    renderOverview();
+  });
+
+  return el('tbody', {}, [header, ...(collapsed ? [] : sorted.slice(0, 200).map(overviewRow))]);
+}
+
 function renderOverview() {
-  const tbody = $('#overview tbody');
+  const table = $('#overview');
   const query = state.query.toLowerCase();
   const rows = state.overview.filter((r) => {
     if (state.realm && r.realm !== state.realm) return false;
@@ -356,45 +449,21 @@ function renderOverview() {
   });
 
   $('#overview-empty').hidden = rows.length > 0;
-  tbody.replaceChildren(...rows.slice(0, 200).map((row) => {
-    const trendClass = row.trend?.direction === 'up' ? 'trend-up'
-      : row.trend?.direction === 'down' ? 'trend-down' : 'trend-flat';
-    const trendText = row.trend?.pct === null || row.trend?.pct === undefined
-      ? '—'
-      : `${row.trend.pct >= 0 ? '▲' : '▼'} ${Math.abs(row.trend.pct).toFixed(0)}%`;
+  for (const body of [...table.tBodies]) body.remove();
 
-    const native = formatNative(row.reference?.value, row.realm);
+  const groups = new Map();
+  for (const row of rows) {
+    const key = groupKey(row);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
 
-    const tr = el('tr', { tabindex: '0' }, [
-      el('td', {}, [
-        el('div', { class: 'item-name', text: row.item }),
-        el('div', { class: 'item-meta', text: `${row.realm === 'pre' ? 'Pre' : 'Post'} · ${row.category ?? '—'}` }),
-      ]),
-      el('td', { class: 'num' }, [
-        el('div', { text: formatGold(row.reference?.value) }),
-        native ? el('div', { class: 'item-meta', text: native }) : null,
-      ]),
-      el('td', { class: 'num', text: formatGold(row.spotAsk) }),
-      el('td', { class: 'num', text: formatGold(row.spotBid) }),
-      el('td', {}, npcRateCell(row.trader)),
-      el('td', { class: `num ${trendClass}`, text: trendText }),
-      el('td', {}, [el('span', { class: 'chip', text: row.liquidity?.level ?? 'none' })]),
-      el('td', {}, [
-        signalFor(row),
-        row.demand?.active ? el('span', { class: 'chip', 'data-tone': 'demand', text: '★ in demand' }) : null,
-        row.warnings?.length
-          ? el('span', {
-            class: 'chip', 'data-tone': 'warn', title: row.warnings.map((w) => w.message).join(' '),
-            text: '⚠ unreliable',
-          })
-          : null,
-      ]),
-    ]);
-
-    tr.addEventListener('click', () => openDetail(row));
-    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') openDetail(row); });
-    return tr;
-  }));
+  // Loudest group first: the point of the page is what moved, not the alphabet.
+  const ordered = [...groups.entries()].sort(
+    (a, b) => Math.max(...b[1].map((r) => Math.abs(r.opportunity ?? 0)))
+      - Math.max(...a[1].map((r) => Math.abs(r.opportunity ?? 0))),
+  );
+  for (const [name, items] of ordered) table.append(groupBody(name, items));
 }
 
 function renderCalendar() {
@@ -435,16 +504,24 @@ function renderThreads(threads) {
 function renderSources() {
   const status = state.context?.sourceStatus ?? {};
   const stats = state.context?.stats ?? {};
-  $('#sources').replaceChildren(...Object.entries(status).map(([name, s]) => {
-    const node = el('span', { class: 'source', 'data-ok': String(Boolean(s.ok)), title: s.detail ?? '' }, [
-      el('span', { class: 'dot' }),
-      el('span', { text: `${name} · ${relativeTime(s.at)}` }),
-    ]);
-    return node;
-  }));
-  $('#db-stats').textContent = `${(stats.observations ?? 0).toLocaleString('en-US')} player quotes · `
-    + `${(stats.traderQuotes ?? 0).toLocaleString('en-US')} trader quotes · `
-    + `${(stats.sheetPrices ?? 0).toLocaleString('en-US')} historical guide prices`;
+  const entries = Object.entries(status);
+  const stale = entries.filter(([, s]) => !s.ok).length;
+
+  $('#sources').replaceChildren(...entries.map(([name, s]) => el('div', {
+    class: 'source', 'data-ok': String(Boolean(s.ok)), title: s.detail ?? '',
+  }, [
+    el('span', { class: 'dot' }),
+    el('span', { text: name }),
+    el('span', { class: 'when', text: relativeTime(s.at) }),
+  ])));
+
+  const summary = $('#sources-summary');
+  summary.textContent = stale ? `${stale} stale` : 'all live';
+  summary.dataset.ok = String(stale === 0);
+
+  $('#db-stats').textContent = `${(stats.observations ?? 0).toLocaleString('en-US')} player · `
+    + `${(stats.traderQuotes ?? 0).toLocaleString('en-US')} trader · `
+    + `${(stats.sheetPrices ?? 0).toLocaleString('en-US')} guide prices`;
 }
 
 /* ------------------------------------------------------------------ detail */
@@ -767,10 +844,15 @@ function renderAlerts(alerts, inventory) {
 
   if (!open.length) {
     panel.hidden = true;
+    $('#alerts-headline').textContent = '';
     document.title = 'GW1 Live Trade Prices';
     return;
   }
   panel.hidden = false;
+
+  const edge = open.reduce((total, a) => total + (a.peak_edge ?? 0), 0);
+  $('#alerts-headline').textContent = `${open.length} item${open.length === 1 ? '' : 's'}`
+    + ` · +${formatGold(edge)} above an average day`;
 
   // Pair each alert with the live opportunity row, which carries the richer
   // detail; the stored alert only holds the peak.
@@ -920,7 +1002,7 @@ async function refresh() {
   ]);
   state.context = context;
   state.overview = Array.isArray(overview) ? overview : [];
-  renderTiles();
+  renderStrip();
   renderOverview();
   renderCalendar();
   renderSources();
@@ -950,6 +1032,16 @@ function wire() {
   });
 
   $('#refresh').addEventListener('click', refresh);
+
+  const collapseAll = $('#collapse-all');
+  collapseAll.addEventListener('click', () => {
+    state.allCollapsed = !state.allCollapsed;
+    state.startCollapsed = state.allCollapsed;
+    state.collapsed = {};
+    collapseAll.textContent = state.allCollapsed ? 'Expand all' : 'Collapse all';
+    renderOverview();
+  });
+  collapseAll.textContent = state.allCollapsed ? 'Expand all' : 'Collapse all';
 
   $('#inv-file').addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
@@ -999,16 +1091,13 @@ function wire() {
   // Precedence: explicit ?theme= (handy for screenshots), then the stored
   // choice, then nothing at all — which lets the OS preference decide.
   const requested = new URLSearchParams(location.search).get('theme');
-  const saved = requested === 'light' || requested === 'dark'
+  // Dark is the default here, so the page opens in the theme it was designed in
+  // rather than flashing light on a fresh browser.
+  const theme = requested === 'light' || requested === 'dark'
     ? requested
-    : localStorage.getItem('gw1-theme');
-  if (saved) {
-    document.documentElement.dataset.theme = saved;
-    themeButton.textContent = saved === 'dark' ? 'Light' : 'Dark';
-  } else {
-    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    themeButton.textContent = dark ? 'Light' : 'Dark';
-  }
+    : localStorage.getItem('gw1-theme') ?? 'dark';
+  document.documentElement.dataset.theme = theme;
+  themeButton.textContent = theme === 'dark' ? 'Light' : 'Dark';
 }
 
 wire();

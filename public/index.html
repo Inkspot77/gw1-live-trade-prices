@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,13 +23,14 @@
   </div>
 </header>
 
+<div class="strip" id="strip"></div>
+
 <main>
   <section>
-    <div class="tiles" id="tiles"></div>
-
     <section class="panel alerts-panel" id="alerts-panel" hidden>
       <div class="alerts-head">
         <h2>Sell now</h2>
+        <span class="alerts-headline" id="alerts-headline"></span>
         <div class="alerts-actions">
           <button type="button" class="icon-button" id="alerts-notify">Enable notifications</button>
           <button type="button" class="icon-button" id="alerts-seen">Mark seen</button>
@@ -44,11 +45,14 @@
     </section>
 
     <div class="panel">
-      <h2>Market opportunities</h2>
-      <p class="sub">
-        Ranked by how far today&rsquo;s price sits from its own 60-day baseline, in robust
-        standard deviations. Click any row for the full history.
-      </p>
+      <div class="panel-head">
+        <h2>Market opportunities</h2>
+        <p class="sub">
+          Grouped by item type. Distance from each item&rsquo;s own 60-day baseline, in robust
+          standard deviations. Click any row for the full history.
+        </p>
+        <button type="button" class="icon-button" id="collapse-all">Collapse all</button>
+      </div>
 
       <div class="legend" aria-hidden="true">
         <span class="key"><span class="swatch" style="background: var(--series-ask)"></span> Player ask (you buy)</span>
@@ -61,57 +65,61 @@
           <tr>
             <th scope="col">Item</th>
             <th scope="col" class="num">Reference</th>
-            <th scope="col" class="num">Ask</th>
-            <th scope="col" class="num">Bid</th>
+            <th scope="col" class="num">Bid / Ask</th>
             <th scope="col">NPC rate</th>
-            <th scope="col" class="num">30d trend</th>
-            <th scope="col">Liquidity</th>
+            <th scope="col" class="num">30d</th>
             <th scope="col">Signal</th>
           </tr>
         </thead>
-        <tbody></tbody>
       </table>
       <div class="empty" id="overview-empty" hidden>
         No priced items yet — the collector is still building history. Give it a few minutes.
       </div>
     </div>
-    <div class="panel">
-      <h2>Your inventory</h2>
-      <p class="sub">
-        GWToolbox writes your whole account inventory to
-        <code>inventories/tmp&lt;account-guid&gt;.json</code> in its settings folder while you play.
-        Drop that file here, or type items by hand.
-      </p>
 
-      <div class="checker-row">
-        <input type="file" id="inv-file" accept=".json,application/json" aria-label="GWToolbox inventory file">
-        <button type="button" class="icon-button" id="inv-clear">Clear</button>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Your inventory</h2>
+        <p class="sub" id="inv-meta"></p>
       </div>
-      <details id="inv-watch-details">
-        <summary class="muted">or watch a folder and re-import automatically</summary>
-        <p class="sub" style="margin-top:8px">
-          Point this at the Toolbox <code>inventories</code> folder, or at a synced copy of it if
-          Guild Wars runs on another machine. The newest export in the folder is re-read whenever
-          it changes.
-        </p>
-        <div class="checker-row">
-          <input type="text" id="inv-watch-path" aria-label="Folder to watch"
-            placeholder="/mnt/gw-sync/inventories">
-          <button type="button" class="icon-button" id="inv-watch-save">Watch</button>
-          <button type="button" class="icon-button" id="inv-watch-stop">Stop</button>
-        </div>
-        <div id="inv-watch-status" class="watch-status"></div>
-      </details>
-      <details id="inv-manual">
-        <summary class="muted">or type items by hand</summary>
-        <textarea id="inv-text" rows="5" aria-label="Items, one per line"
-          placeholder="250 Glob of Ectoplasm&#10;Obsidian Shard x88&#10;Charr Salvage Kit, 3"></textarea>
-        <button type="button" class="icon-button" id="inv-paste-go">Import typed list</button>
-      </details>
-      <div id="inv-status" class="sub"></div>
 
       <div id="inv-summary"></div>
       <div id="inv-body"></div>
+
+      <details id="inv-import">
+        <summary class="muted">import or re-import your holdings</summary>
+        <p class="sub" style="margin-top:8px">
+          GWToolbox writes your whole account inventory to
+          <code>inventories/tmp&lt;account-guid&gt;.json</code> in its settings folder while you play.
+          Drop that file here, or type items by hand.
+        </p>
+        <div class="checker-row">
+          <input type="file" id="inv-file" accept=".json,application/json" aria-label="GWToolbox inventory file">
+          <button type="button" class="icon-button" id="inv-clear">Clear</button>
+        </div>
+        <details id="inv-watch-details">
+          <summary class="muted">or watch a folder and re-import automatically</summary>
+          <p class="sub" style="margin-top:8px">
+            Point this at the Toolbox <code>inventories</code> folder, or at a synced copy of it if
+            Guild Wars runs on another machine. The newest export in the folder is re-read whenever
+            it changes.
+          </p>
+          <div class="checker-row">
+            <input type="text" id="inv-watch-path" aria-label="Folder to watch"
+              placeholder="/mnt/gw-sync/inventories">
+            <button type="button" class="icon-button" id="inv-watch-save">Watch</button>
+            <button type="button" class="icon-button" id="inv-watch-stop">Stop</button>
+          </div>
+          <div id="inv-watch-status" class="watch-status"></div>
+        </details>
+        <details id="inv-manual">
+          <summary class="muted">or type items by hand</summary>
+          <textarea id="inv-text" rows="5" aria-label="Items, one per line"
+            placeholder="250 Glob of Ectoplasm&#10;Obsidian Shard x88&#10;Charr Salvage Kit, 3"></textarea>
+          <button type="button" class="icon-button" id="inv-paste-go">Import typed list</button>
+        </details>
+        <div id="inv-status" class="sub"></div>
+      </details>
     </div>
   </section>
 
@@ -138,8 +146,8 @@
         </select>
       </div>
       <div class="checker-row">
-        <input type="text" id="check-price" placeholder="Price, e.g. 18k or 2e" aria-label="Price">
-        <button type="button" class="icon-button" id="check-go">Check</button>
+        <input type="text" id="check-price" class="mono" placeholder="Price, e.g. 18k or 2e" aria-label="Price">
+        <button type="button" class="icon-button primary" id="check-go">Check</button>
       </div>
 
       <div id="verdict"></div>
@@ -158,10 +166,13 @@
     </div>
 
     <div class="panel">
-      <h2>Sources</h2>
+      <div class="panel-head">
+        <h2>Sources</h2>
+        <span class="sources-summary" id="sources-summary"></span>
+      </div>
       <p class="sub">Every panel above is built from these. A red dot means that source last failed.</p>
       <div class="sources" id="sources"></div>
-      <p class="sub" id="db-stats" style="margin-top:12px"></p>
+      <p class="sub mono db-stats" id="db-stats"></p>
     </div>
   </aside>
 </main>
@@ -172,6 +183,7 @@
       <div id="detail-title" style="font-weight:700;font-size:16px"></div>
       <div id="detail-sub" class="muted" style="font-size:12px"></div>
     </div>
+    <span id="detail-signal"></span>
     <button type="button" class="icon-button close" id="detail-close">Close</button>
   </div>
   <div class="dialog-body" id="detail-body"></div>
