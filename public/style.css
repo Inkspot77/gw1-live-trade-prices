@@ -373,7 +373,11 @@ svg text { font-family: var(--font); }
 .tooltip[hidden] { display: none; }
 .tooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
 .tt-row { display: flex; justify-content: space-between; gap: 16px; }
-.tt-row span:last-child { font-family: var(--mono); text-align: right; }
+.tt-row span:last-child { text-align: right; }
+/* Opt-in, not a default: tt-row is reused for the demand calendar, where the
+   right-hand value is a quest/monster name, not a number — forcing that into
+   the monospace numeric font looked mismatched against the label beside it. */
+.tt-row span:last-child.mono { font-family: var(--mono); }
 
 /* ---------- Source health ---------- */
 

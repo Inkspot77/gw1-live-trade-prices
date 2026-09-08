@@ -112,7 +112,7 @@ function showTooltip(event, title, rows) {
     el('div', { class: 'tt-title', text: title }),
     ...rows.map(([label, value]) => el('div', { class: 'tt-row' }, [
       el('span', { text: label }),
-      el('span', { text: value }),
+      el('span', { class: 'mono', text: value }),
     ])),
   );
   tooltip.hidden = false;
@@ -536,7 +536,7 @@ function goingRatesRows(data) {
     if (!Number.isFinite(bid) && !Number.isFinite(ask)) return null;
     return el('div', { class: 'tt-row', style: 'padding:3px 0' }, [
       el('span', { class: 'muted', text: label }),
-      el('span', { text: `Buys ${formatGold(bid)} · Sells ${formatGold(ask)}` }),
+      el('span', { class: 'mono', text: `Buys ${formatGold(bid)} · Sells ${formatGold(ask)}` }),
     ]);
   };
 
