@@ -4,7 +4,6 @@
 [![Node.js >=22.13](https://img.shields.io/badge/node-%3E%3D22.13-brightgreen.svg)](https://nodejs.org)
 [![CI](https://github.com/Inkspot77/gw1-live-trade-prices/actions/workflows/docker-image.yml/badge.svg)](https://github.com/Inkspot77/gw1-live-trade-prices/actions/workflows/docker-image.yml)
 
-
 <img width="1680" height="1210" alt="GWLP1" src="https://github.com/user-attachments/assets/9d4c27ff-7e49-44b0-8f46-ffc30873e8be" />
 
 <img width="1662" height="1205" alt="GWLP2" src="https://github.com/user-attachments/assets/7b0fc157-c009-4c85-b4d3-e5d091a968e4" />
@@ -15,133 +14,118 @@
 
 <img width="456" height="491" alt="GWLP5" src="https://github.com/user-attachments/assets/eebc6e8d-c015-4703-a8cd-44be4847599c" />
 
+## What this is
 
+A price dashboard for Guild Wars 1, built for people who trade and don't want
+to get ripped off — or to accidentally lowball someone else. It watches the
+places players actually check prices (trade chat, the NPC material trader,
+community price sheets, forum price-check threads), keeps a running history
+of what things have actually sold for, and tells you plainly whether a price
+in front of you is good, fair, or bad — **for whichever side of the deal
+you're on.**
 
+It runs entirely on your own computer (or a server you control). Nothing gets
+uploaded anywhere, there's no account to make, and there's nothing to install
+beyond Node.js itself.
 
+## Getting started
 
+If you just want it running — on a server, or on the same Windows PC you play
+Guild Wars on — **[DEPLOY.md](deploy/DEPLOY.md)** walks through both, start to
+finish, assuming no prior experience with servers or the command line.
 
-A local dashboard that cross-references every public Guild Wars 1 price source
-into one view, and tells you whether the price in front of you is a good deal —
-**in both directions**. It will warn you when you are about to overpay, and it
-will equally warn you when you are about to lowball the person on the other side.
-
-Runs entirely on your machine. No accounts, no dependencies, no build step.
+For the short version, if you're already comfortable with a terminal:
 
 ```bash
-npm start                 # http://127.0.0.1:8787
-npm run backfill          # also pull 90 days of NPC trader history (do this once)
-npm test                  # npm run test:watch / npm run test:coverage also work
+npm start                 # opens the dashboard at http://127.0.0.1:8787
+npm run backfill          # optional, once: pulls 90 days of price history immediately
+npm test                  # runs the test suite
 ```
 
-Requires **Node 22.13+** (or 23.4+). It uses the built-in `node:sqlite`, which
-needs `--experimental-sqlite` on 22.5-22.12 and is unflagged from 22.13.0 and
-23.4.0 onward.
+You'll need **Node.js version 22.13 or newer** (or 23.4+) — get it from
+[nodejs.org](https://nodejs.org). Everything else is built in; there's no
+separate install step and nothing else to download.
 
-Every setting (`PORT`, `HOST`, `AUTH_USER`, `AUTH_PASS`, `WATCH_DIR`,
-`BACKFILL`, `NO_POLL`) can be a CLI flag or the matching environment
-variable — see [`.env.example`](.env.example) for the full list, or
-`node bin/gw1-prices.mjs --help`. Copy it to `.env` and `npm start` picks it
-up automatically via Node's own `--env-file-if-exists` — no dependency, and
-nothing is read from `.env` unless you're going through `npm start`/`npm run
-backfill` or pass the flag yourself.
+Want to change the port, turn on a password, or point it at a folder of
+inventory exports? All of that is covered in
+**[`.env.example`](.env.example)** — copy it to `.env`, fill in what you want,
+and `npm start` picks it up automatically.
 
----
+## What it actually watches
 
-## 📚 Documentation
+| Where | What it gets from there |
+| --- | --- |
+| Kamadan trade chat (Post-Searing) | Live "buying"/"selling" messages as players type them |
+| Ascalon trade chat (Pre-Searing) | Same, for the Pre-Searing economy |
+| The in-game NPC material trader | The official buy/sell price — and up to 90 days of how that price has moved |
+| The Pre-Searing community price sheet | Long-running, hand-curated prices going back to 2019 |
+| Guild Wars Legacy forum | Price-check discussion threads for one-of-a-kind weapons, which don't have a "market price" |
+| The official wiki | Which items are in demand right now (daily quests, Nicholas rotations) |
 
-### For Obsidian Users
-This repository doubles as an Obsidian vault for comprehensive documentation. Open the `.obsidian/` folder in Obsidian to access:
-- Interactive graph view of documentation connections
-- Advanced search across all docs
-- Backlinks to see where topics are referenced
-- Note-taking and knowledge management features
+That last one is worth calling out: the wiki isn't a price source, it's a
+**demand** source. When the game itself is asking players to turn in a
+particular item today, that item usually gets scarcer and pricier for a
+while — so the dashboard flags it.
 
-**Starting Point**: Open `docs/OBSIDIAN-VIEW.md` in Obsidian for guidance on using this as a knowledge base.
+## Why it remembers prices instead of just showing the latest one
 
-### For GitHub Users
-- **[README](README.md)** - Project overview and quick start
-- **[CONTRIBUTING](CONTRIBUTING.md)** - How to contribute to this project
-- **[CHANGELOG](CHANGELOG.md)** - Version history and release notes
-- **[DEPLOY](deploy/DEPLOY.md)** - Plain-language setup: an Ubuntu server, or running locally on Windows
+None of the sources above keep a real history on their own. Trade chat is a
+live, scrolling window — once a message scrolls past, it's gone. The NPC
+trader's price moves over time, but nothing publishes that history except
+here. So the dashboard quietly keeps its own record in the background, and
+**gets more useful to you the longer you leave it running.**
 
----
+If you don't want to wait weeks for that history to build up on its own, run
+`npm run backfill` once — it pulls about 90 days of NPC trader history
+immediately.
 
-## What it reads
+## How it decides whether a price is good
 
-| Source | What it actually provides | How |
-| --- | --- | --- |
-| `kamadan.gwtoolbox.com` | Post-Searing trade chat, live | `GET /m`, `GET /s/<term>` |
-| `ascalon.gwtoolbox.com` | Pre-Searing trade chat, live | same endpoints |
-| GWToolbox trader feed | **In-game NPC material-trader buy/sell quotes**, plus ~90 days of history | inline `current_trader_quotes`, `GET /pricing_history/<id>/<from>/<to>` |
-| `presearing.com/pricecheck` | ~400 Pre-Searing items with dated low/high bands back to 2019 | the public Google Sheet the page itself reads |
-| `guildwarslegacy.com` board 12 | Price-check threads for unique weapons | board RSS feed |
-| `wiki.guildwars.com` | Daily activities, Nicholas Sandford, Nicholas the Traveler | MediaWiki `action=parse` |
+In order of how much it trusts each one:
 
-The wiki is not a price source — it is the *demand* source. Nicholas rotations
-and Zaishen quests are the main predictable price movers in both economies, so
-an item on today's list gets flagged as temporarily scarce.
+1. **What the NPC trader will pay or charge.** This one's a hard fact, not an
+   opinion — the trader will always buy or sell at that price, no negotiation.
+   If a player is offering worse than that, it's flagged outright, full stop.
+2. **What players are actually asking and offering**, gathered from trade
+   chat. This is the real market, but it's noisy — some people list joke
+   prices, some are just wrong, some are bots repeating the same line for
+   hours. The dashboard is built to ignore that noise rather than get fooled
+   by it, so one absurd price in the chat log doesn't skew everything.
+3. **The community price sheet**, for the (mostly Pre-Searing) items that
+   rarely show up in trade chat at all. Not live, but the only long-term
+   record that exists for those items.
 
-## Why it stores data locally
+When you tell it a price you're considering, it compares that price against
+whichever side of the deal you're actually on — a buyer competes with other
+asking prices, a seller competes with other offers — and tells you how that
+stacks up.
 
-No upstream source keeps a player-market price history. GWToolbox archives NPC
-trader quotes only; the Pre-Searing sheet is a handful of manual snapshots; the
-trade-chat endpoints are a live window a few hundred messages wide. Polling and
-storing is what turns that into a baseline you can compare against, so **the
-dashboard gets more useful the longer you leave it running.**
+### Keeping it fair to both sides
 
-`npm run backfill` gives the 36 tradeable materials a real 90-day baseline
-immediately rather than waiting three months for one to accumulate.
+This dashboard is built around one rule: it should never help you take
+advantage of someone else, or let someone else take advantage of you. So the
+same check runs both ways — if a price is unusually good *for you*, it also
+asks whether that means you're **underpaying a seller** or **overcharging a
+buyer**, and says so plainly if it does. A "great deal" that's only great
+because the other person got shortchanged isn't treated as a win.
 
-## How a price is judged
+This runs quietly in the background on every price check and every sell
+alert — it isn't a separate chart or number you have to go looking for, it's
+just part of how "good deal" and "bad deal" get decided.
 
-Three anchors, in decreasing order of authority:
+## Tracking what you own
 
-1. **NPC trader quotes** — objective. The trader will always transact at these,
-   so no player price outside them is ever worth taking. Buying above the
-   trader's ask, or selling below its bid, is flagged outright regardless of
-   what the statistics say.
-2. **Player quotes** — the real market, but noisy and adversarial. Every
-   statistic is robust (median, MAD, trimmed IQR) because one "WTS ecto 900k"
-   must not move the baseline.
-3. **Curated snapshots** — the Pre-Searing sheet's dated bands. Sparse, but the
-   only multi-year record that exists for that economy.
+GWToolbox (the popular Guild Wars helper tool) already writes out everything
+in your account — every character, every bag, your Xunlai storage — to a
+plain file on disk, automatically, while you play. No plugin, no upload,
+nothing to configure in-game. The dashboard can read that file directly:
 
-The verdict compares your price to the side you would actually transact with —
-buying means lifting someone's ask, selling means hitting someone's bid — and
-reports the distance in robust standard deviations.
+**Your inventory → choose the file.** That's the whole setup. If Guild Wars
+runs on a different computer than the dashboard, either copy that file over
+manually, or point the dashboard at a synced copy of the folder (see
+[DEPLOY.md](deploy/DEPLOY.md) for a few easy ways to do that).
 
-### The fair corridor
-
-This is the anti-gouging guard, and it is deliberately symmetric.
-
-- **Lower edge** — the 25th percentile of standing bids. Pay less than this and
-  you are exploiting a seller who has not checked the market.
-- **Upper edge** — the 75th percentile of standing asks. Ask more than this and
-  you are charging a buyer above what the market is actually paying.
-- Both edges are then clamped by the NPC trader, which nobody should transact
-  outside of.
-
-Trading inside the corridor is fair to both sides. The dashboard tells you when
-you fall outside it **in either direction** — including when the unfair one is you.
-
-## Valuing your own inventory
-
-GWToolbox's **Account Inventory** window already exports everything you own to a
-local file — no API, no upload, no account linking:
-
-```
-<Toolbox settings folder>/inventories/tmp<account-guid>.json
-```
-
-It rewrites that file on every outpost map load, on logout, and about a second
-after any inventory change, and it covers every character, every bag, hero
-inventories and the Xunlai chest. (The published docs still describe an older
-per-character `.ini` layout; current builds write one JSON file per account.
-Both shapes are read here.)
-
-To use it: **Your inventory → choose the file.** If Guild Wars runs on a
-different machine, copy the file over, or point a synced folder at it. There
-is also a paste box for typing items by hand:
+There's also a plain text box if you'd rather just type or paste a list:
 
 ```
 250 Glob of Ectoplasm
@@ -149,231 +133,110 @@ Obsidian Shard x88
 Charr Salvage Kit, 3
 ```
 
-### Watching a folder
+### Keeping it up to date automatically
 
-Rather than re-dropping the file by hand, point the dashboard at a folder and it
-re-imports whenever the export changes:
+Rather than re-selecting the file every time, you can point the dashboard at
+the *folder* GWToolbox writes to, and it'll notice and re-import automatically
+whenever that file changes — under **Your inventory → watch a folder** in the
+dashboard, or with `--watch /path/to/inventories` on the command line.
 
-```bash
-node bin/gw1-prices.mjs --watch /path/to/Toolbox/inventories
-```
+Every item you own that isn't automatically recognized is still shown, with a
+box to name it — nothing you own silently disappears from your total just
+because the dashboard didn't recognize it at first glance.
 
-or set it in the UI under **Your inventory → watch a folder**. The path is
-remembered, so it survives a restart.
+## Sell alerts: "you should probably sell this right now"
 
-If Guild Wars runs on another machine, point it at a synced copy of that folder
-(Syncthing, Dropbox, or a mounted share). The newest export in the folder wins,
-so multiple accounts are handled without configuration.
+Once your inventory is loaded in, the dashboard keeps an eye on it and raises
+a **Sell now** alert whenever something you own is fetching noticeably more
+than it usually does — comparing the item against its *own* history, not
+against some generic rule.
 
-Two detection mechanisms run together, deliberately. `fs.watch` reacts instantly
-where the OS supports it, and a stat poll every 10s is the fallback — **inotify
-events do not cross CIFS or NFS mounts**, so a folder shared from a Windows box
-can change without ever emitting an event. The status line says which mechanism
-is actually live, so a stalled watch is diagnosable rather than mysterious.
+A few things make this genuinely useful rather than noisy:
 
-Toolbox rewrites the file in place while you play, so a read can land mid-write.
-A failed parse is retried briefly before being reported, and a partial file is
-never imported. A byte-identical rewrite (which sync tools do routinely) is
-detected by content hash and skipped, so it does not churn the alert engine.
+- It compares like with like — the NPC trader's own price history for things
+  the trader buys, or the player market's own recent history for everything
+  else. It never compares today's buying price against last month's selling
+  price, since that would manufacture a false signal out of nothing.
+- An alert, once open, stays open until the price actually drops back down
+  meaningfully — so a price bouncing right at the edge doesn't flicker the
+  alert on and off every few minutes.
+- If you own several things that are all fetching unusually good prices,
+  they're ranked by how much extra gold selling today would actually put in
+  your pocket — not by how statistically unusual the price is. A single rare
+  item at a wild price won't outrank a full stack of materials that are each
+  only a little bit up, if the stack adds up to more gold overall.
+- The suggested selling price is capped at what the market is genuinely
+  paying right now — a good moment to sell isn't licence to ask for more than
+  that.
 
-### How items get identified
+Alerts keep working even while the dashboard tab isn't open, since the
+checking happens in the background. You can turn on desktop notifications
+from the alerts panel if you want to be told the moment one fires.
 
-The file stores a numeric `model_id` and the item's *encoded* name, not English
-text. Three routes are tried, in order:
+## Running it long-term
 
-1. **Model id** — resolves every material, dye and stackable outright.
-2. **A fingerprint you have named before** — the encoded name is stable per item
-   type, so naming an unknown item once teaches it permanently.
-3. **Readable fragments** of the encoded name, matched against the item registry.
+The short version lives in [DEPLOY.md](deploy/DEPLOY.md) — it covers hosting
+this on an Ubuntu server (with or without a password-protected LAN address)
+and running it directly on a Windows PC, both in plain language, start to
+finish.
 
-Anything still unidentified is **listed, not discarded**, with a box to name it.
-The headline total therefore reads as an honest floor rather than a guess.
+A couple of things worth knowing regardless of where you run it:
 
-## Sell alerts
+- **There's no password by default.** Anyone who can reach the address can
+  use it, including the parts that change what's stored (like importing
+  inventory). That's fine on your own machine, or on a home network you
+  trust completely — otherwise, turn on the optional password (`AUTH_USER` /
+  `AUTH_PASS` in `.env.example`) or follow the LAN setup in DEPLOY.md, which
+  adds both a password and a proper lock icon (HTTPS).
+- **Docker is the easiest way to run this on a server.** `docker compose up
+  -d --build` is the whole setup — no separate installs, since everything
+  the app needs is baked into the container. DEPLOY.md walks through this
+  exact command, plus how to add the password-protected LAN address.
 
-Once holdings are imported, the dashboard watches them and raises a **Sell now**
-panel when something you own is fetching more than it usually does.
+## The two in-game economies stay separate
 
-The judgement uses whichever evidence is stronger for that item:
-
-- For an **NPC-traded material**, the trader's own price history. The ecto
-  trader alone has swung between 11k and 26k over 90 days, so "is this a good
-  moment to sell to the trader?" is a real and objectively answerable question.
-- For **everything else**, the player market's bid side against its own longer
-  baseline. Spot and baseline are always read from the same side of the book —
-  comparing today's bids against last month's asks would manufacture a signal
-  out of the bid/ask spread.
-
-Alerts are **hysteretic**: one opens above 1.5σ and only closes below 1.0σ, so a
-price hovering on the threshold cannot flap. While open, an alert remembers its
-*peak*, so the list shows the best the moment got rather than wherever the price
-happens to sit when you look. Selling the item clears its alert.
-
-Ranking is by **total gold captured versus an average day** (edge × quantity),
-not by raw unusualness — otherwise a single cupcake three sigma above baseline
-would outrank a 250-stack of ectos.
-
-The suggested price is **capped at the fair corridor**. A good moment to sell
-means the market is paying well; it is not a licence to overcharge.
-
-Evaluation runs on the poll loop, so alerts fire whether or not the dashboard is
-open. Desktop notifications are opt-in via the button in the panel, and fire at
-most once per alert.
-
-## Running it on a server
-
-Two ways to host this long-term: a container, or a systemd unit on bare metal.
-Either way, **authentication is off by default** and the POST endpoints change
-stored state, so only bind beyond loopback on a network you trust — or turn
-auth on first.
-
-### Authentication
-
-Set `AUTH_USER` and `AUTH_PASS` (env vars, or `--auth-user`/`--auth-pass`
-flags — both required together, or neither) and every request needs HTTP
-Basic Auth. The browser handles the credential prompt natively; there is no
-login page to build or maintain.
-
-```bash
-AUTH_USER=alan AUTH_PASS=something-long-and-unique node bin/gw1-prices.mjs --host 0.0.0.0
-```
-
-This is genuinely the *simple* option — one pair of env vars, no reverse proxy,
-no certificate — but it is worth being precise about what it does and does not
-do. **Basic Auth sends credentials base64-encoded on every request: trivially
-decodable, not encrypted.** It stops a stranger who finds the port from using
-the dashboard. It does not stop anyone who can see the raw network traffic from
-reading the password straight off the wire. Rely on it alone only over a
-transport that is already encrypted — an SSH tunnel, a Tailscale or WireGuard
-link. On the open internet over plain HTTP, pair it with real TLS termination:
-`deploy/`'s Docker setup ships exactly that (a Caddy profile that terminates
-HTTPS with its own internal CA and its own basic auth), documented in
-[DEPLOY.md](deploy/DEPLOY.md) — the two are independent, so it is fine to use
-either, both, or neither.
-
-A `GET /healthz` route always answers `200` with no credentials required, so a
-container health check keeps working without needing the password wired into
-it; it reveals nothing beyond "the process is up".
-
-### Docker
-
-```bash
-docker compose up -d --build
-```
-
-That's the whole setup — the image needs nothing else, since the app has no
-dependencies to install. It binds `127.0.0.1:8788` on the host by default
-(loopback only — not the LAN; `docker compose --profile lan up -d --build`
-adds a Caddy that serves HTTPS (internal CA) with basic auth on host port
-8787, see the note at the top of `docker-compose.yml`), and the price history
-lives in a named volume so it survives rebuilds.
-
-To watch a synced GWToolbox inventory folder, uncomment the two `# ` lines
-near `WATCH_DIR` in `docker-compose.yml` and point the bind mount at wherever
-your sync tool lands the export (see ["tracking your inventory when using the
-server"](deploy/DEPLOY.md#optional--tracking-your-inventory-when-using-the-server)
-in DEPLOY.md for the Syncthing setup — the container side is identical
-either way).
-
-To seed 90 days of NPC trader history once, before first use:
-
-```bash
-docker compose --profile tools run --rm backfill
-```
-(Ctrl-C, or `docker stop $(docker ps -q --filter name=backfill-run)`, once
-the log shows the backfill summary line — the container keeps serving after
-the seed finishes, same as the plain-Node version does.)
-
-Two things worth knowing, both found by actually building and running this
-rather than assumed:
-
-- **The base image needs Node ≥22.13** for `node:sqlite` to load unflagged.
-  The `Dockerfile` checks this at build time and fails loudly if it doesn't,
-  rather than shipping an image that 500s on first request.
-- **`init: true` is load-bearing, not decoration.** Without it, Node runs as
-  PID 1 of the container's PID namespace, and a Linux kernel quirk means an
-  *unhandled* SIGTERM is silently dropped instead of falling back to its
-  default action (terminate) — `docker stop` then burns its full timeout and
-  force-kills every time. Measured: 10s (killed) without `init: true`, 0.3s
-  (clean exit) with it.
-
-### Plain-language install guide
-
-[DEPLOY.md](deploy/DEPLOY.md) is a no-background-assumed walkthrough covering
-two full setups: hosting on an Ubuntu server with Docker (the same Docker path
-above, spelled out step by step, including the LAN/HTTPS profile and syncing
-the inventory export from a Windows Guild Wars install), or just running the
-dashboard directly on the Windows PC you play on, with no server at all.
-
-### Bare metal / systemd
-
-`deploy/` also holds a systemd unit (`gw1-prices.service`) and a preflight
-checker (`preflight.sh`) for running the plain Node process as a service
-instead of in a container — a manual setup, not currently walked through
-step by step; the comments in each file are the reference for it.
-
-## The two economies never mix
-
-Post-Searing settles in ectos; Pre-Searing settles in Black Dye. Both rates
-float and are read live (ecto from the NPC trader, Black Dye from the price
-guide), and items are tagged by realm so a Pre-Searing price never contaminates
-a Post-Searing baseline.
-
-## Layout
-
-```
-bin/gw1-prices.mjs     entry point
-src/
-  server.mjs           HTTP server + JSON API (loopback only)
-  poller.mjs           per-source schedules, isolated failures
-  db.mjs               SQLite schema and queries
-  analytics.mjs        robust statistics, deal scoring, the fair corridor
-  parse/
-    currency.mjs       "6 = 100k", "10a/stk", "2e", "1bd" -> gold
-    items.mjs          item registry and the alias matcher
-    trade.mjs          one chat line -> structured quotes
-    inventory.mjs      GWToolbox account file / typed list -> your holdings
-  valuation.mjs        per-item analysis, inventory pricing, the alert engine
-  watcher.mjs          folder watch -> automatic inventory re-import
-  sources/             one adapter per site
-public/                dashboard (vanilla JS, inline SVG charts)
-data/prices.db         your accumulated history + imported inventory
-```
+Guild Wars splits into two separate trading economies — Pre-Searing and
+Post-Searing — with their own currencies (Black Dye and Globs of Ectoplasm,
+respectively, since gold alone loses meaning at high prices). The dashboard
+tracks both independently and never mixes a price from one into the other's
+history.
 
 ## Reading the dashboard
 
-- **Reference** — the single number to quote, with its source and confidence.
-- **Ask / Bid** — median of the last 3 days on each side.
-- **Fair corridor** — the bullet chart. Green band is the corridor, green rules
-  are the NPC bounds, dots are the live market.
-- **Signal** — how far today sits from the item's own 60-day baseline.
-- **Liquidity** — how much to trust it. `thin` means very few recent quotes.
+- **Reference** — the one number to quote if someone asks "what's this
+  worth", along with where that number came from and how confident it is.
+- **Bid / Ask** — what the market's actually paying and asking right now.
+- **NPC rate** — what the in-game trader will pay or charge, when it's a
+  material the trader deals in. This one never lies.
+- **30d** — whether today's price is notably higher or lower than this item's
+  own history over the last 60 days.
+- **Signal** — a quick read on how unusual the current price is, and how much
+  data backs that up. Items with very few recent quotes are marked so you
+  know to trust the number a little less.
 
-Charts are paired with a table view, series are direct-labelled as well as
-coloured, and the palette is validated for colour-vision deficiency in both
-light and dark themes.
+Clicking any item opens its full detail — going rates broken out by NPC
+trader, right now, last 14 days, and last 60 days, plus a chart of price
+history over time and the individual quotes that fed into it.
 
-## Known limits
+## Known rough edges
 
-- Trade chat is genuinely ambiguous. "Cupcakes 14e" may mean per-item or per
-  stack, and nothing in the message says which. The parser is conservative —
-  it emits nothing rather than guess — and outliers that slip through are
-  trimmed by the robust statistics, but a thin market can still mislead.
-- Unique weapons (skin + requirement + mods) have no meaningful "market price".
-  Those are surfaced as Guild Wars Legacy threads rather than as numbers.
-- The GWToolbox endpoints are undocumented. They are polled gently, with backoff
-  on rate limits, and every source fails independently — a red dot on the
-  Sources panel means that one source is stale, not that the dashboard is down.
-
----
-
-## 📖 Additional Resources
-
-- **[Obsidian View Guide](docs/OBSIDIAN-VIEW.md)** - How to use this repository as an Obsidian vault
-- **[Contributing](CONTRIBUTING.md)** - How to contribute to this project
-- **[Changelog](CHANGELOG.md)** - Version history and release notes
-- **[Deploy Guide](deploy/DEPLOY.md)** - Plain-language setup: an Ubuntu server, or running locally on Windows
+- **Trade chat is genuinely ambiguous sometimes.** "Cupcakes 14e" doesn't say
+  whether that's per item or per stack, and nothing forces players to be
+  clear about it. The dashboard would rather show nothing than guess wrong,
+  so some genuine listings just don't get picked up.
+- **One-of-a-kind weapons don't have a real "market price."** A weapon's
+  actual worth depends on its exact stats and mods, which vary too much for
+  a single number to mean anything. Those show up as linked forum
+  price-check discussions instead of a price.
+- **The upstream sources aren't always up.** Every source is checked
+  independently, so if one goes down or gets slow, only that one shows as
+  stale — the rest of the dashboard keeps working normally.
 
 ---
 
-*This project combines GitHub for version control and documentation, with Obsidian for knowledge management and documentation visualization.*
+## More documentation
+
+- **[DEPLOY.md](deploy/DEPLOY.md)** — plain-language setup: an Ubuntu server, or running locally on Windows.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how the code is laid out, and how to work on it.
+- **[CHANGELOG.md](CHANGELOG.md)** — what's changed, release by release.
+- **[docs/OBSIDIAN-VIEW.md](docs/OBSIDIAN-VIEW.md)** — this repo also works as an Obsidian vault, if that's your thing.

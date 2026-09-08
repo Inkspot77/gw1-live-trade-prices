@@ -18,6 +18,56 @@ Thank you for your interest in contributing to GW1 Live Trade Prices! This docum
 4. Run the application: `npm start`
 5. Run backfill for full data: `npm run backfill`
 
+## Project layout
+
+```
+bin/gw1-prices.mjs     entry point
+src/
+  server.mjs           HTTP server + JSON API (loopback only)
+  poller.mjs           per-source schedules, isolated failures
+  db.mjs               SQLite schema and queries
+  analytics.mjs        robust statistics, deal scoring, the anti-gouging guardrail
+  parse/
+    currency.mjs       "6 = 100k", "10a/stk", "2e", "1bd" -> gold
+    items.mjs          item registry and the alias matcher
+    trade.mjs          one chat line -> structured quotes
+    inventory.mjs      GWToolbox account file / typed list -> your holdings
+  valuation.mjs        per-item analysis, inventory pricing, the alert engine
+  watcher.mjs          folder watch -> automatic inventory re-import
+  sources/             one adapter per site
+public/                dashboard (vanilla JS, inline SVG charts)
+data/prices.db         accumulated history + imported inventory
+```
+
+## Notes on hosting internals
+
+These are implementation details behind [DEPLOY.md](deploy/DEPLOY.md)'s
+plain-language steps — useful if you're changing the Docker setup or the
+auth code, not needed just to run the app.
+
+- **Authentication is opt-in Basic Auth** (`AUTH_USER`/`AUTH_PASS`), checked
+  with a timing-safe comparison. Basic Auth sends credentials base64-encoded
+  on every request — trivially decodable, not encrypted. It's fine over a
+  transport that's already encrypted (an SSH tunnel, Tailscale, WireGuard, or
+  the Caddy TLS profile in `docker-compose.yml`'s `lan` profile); it is not a
+  substitute for TLS on the open internet. `GET /healthz` always answers
+  `200` with no credentials required, so a container health check keeps
+  working without the password wired into it.
+- **The Docker image needs Node ≥22.13** for `node:sqlite` to load
+  unflagged. The `Dockerfile` checks this at build time and fails loudly if
+  it doesn't, rather than shipping an image that 500s on first request.
+- **`init: true` in `docker-compose.yml` is load-bearing, not decoration.**
+  Without it, Node runs as PID 1 of the container's PID namespace, and a
+  Linux kernel quirk means an *unhandled* SIGTERM is silently dropped
+  instead of falling back to its default action (terminate) — `docker stop`
+  then burns its full timeout and force-kills every time. Measured: 10s
+  (killed) without `init: true`, 0.3s (clean exit) with it.
+- **A systemd unit exists as an alternative to Docker** —
+  `deploy/gw1-prices.service` and `deploy/preflight.sh`, for running the
+  plain Node process as a service on bare metal. Not currently walked
+  through step by step anywhere; the comments in each file are the
+  reference.
+
 ## Code Style
 
 - Use JavaScript modules (ESM)
