@@ -4,9 +4,17 @@
 [![Node.js >=22.13](https://img.shields.io/badge/node-%3E%3D22.13-brightgreen.svg)](https://nodejs.org)
 [![CI](https://github.com/Inkspot77/gw1-live-trade-prices/actions/workflows/docker-image.yml/badge.svg)](https://github.com/Inkspot77/gw1-live-trade-prices/actions/workflows/docker-image.yml)
 
-<img width="1291" height="1106" alt="screenshot-2026-08-23_21-32-51" src="https://github.com/user-attachments/assets/a117d14f-0268-402a-994b-dcbdad584e8a" />
-<img width="1238" height="1136" alt="screenshot-2026-08-23_21-31-58" src="https://github.com/user-attachments/assets/cf6f6e6e-afb4-475d-8d7a-aab4430bda26" />
-<img width="1296" height="1190" alt="screenshot-2026-08-23_21-31-34" src="https://github.com/user-attachments/assets/adb5d301-76dc-4844-b43a-9369b26dca1d" />
+
+<img width="1680" height="1210" alt="GWLP1" src="https://github.com/user-attachments/assets/9d4c27ff-7e49-44b0-8f46-ffc30873e8be" />
+
+<img width="1662" height="1205" alt="GWLP2" src="https://github.com/user-attachments/assets/7b0fc157-c009-4c85-b4d3-e5d091a968e4" />
+
+<img width="455" height="612" alt="GWLP3" src="https://github.com/user-attachments/assets/a64dac27-3722-430b-877e-addbedf3a4d0" />
+
+<img width="450" height="1077" alt="GWLP4" src="https://github.com/user-attachments/assets/0e13c415-116c-437c-ae78-9a7a4c67faf0" />
+
+<img width="456" height="491" alt="GWLP5" src="https://github.com/user-attachments/assets/eebc6e8d-c015-4703-a8cd-44be4847599c" />
+
 
 
 
