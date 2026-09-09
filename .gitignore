@@ -1,6 +1,13 @@
 # Dependencies
 node_modules/
 
+# Windows installer build output (assembled by CI, or locally if you build
+# one yourself) — see .github/workflows/docker-image.yml and installer/.
+dist/
+installer/Output/
+node-extracted/
+node.zip
+
 # Runtime database — your accumulated price history + imported inventory.
 # Recreated by the app; never commit it or its write-ahead log.
 data/prices.db

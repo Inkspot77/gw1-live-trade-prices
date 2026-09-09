@@ -248,43 +248,38 @@ This runs the dashboard directly on the same computer you play Guild Wars
 on — no server, no networking to configure, and no syncing, since the
 dashboard can read your inventory export straight from disk.
 
-### Step 1 — Install Node.js
+### Step 1 — Download and run the installer
 
-Node.js is the program that runs the dashboard. Download it from
-[nodejs.org](https://nodejs.org) — get version **22.13 or newer** (the
-"Current" download is usually newer than that; the "LTS" download sometimes
-isn't, so check the version number before installing). Run the installer,
-accepting the defaults.
+Grab the latest `GW1TradePrices-Setup.exe` — while this project doesn't
+publish tagged releases yet, you can get it from the **windows-installer**
+job of any green run on the
+[Actions page](https://github.com/Inkspot77/gw1-live-trade-prices/actions)
+(open a recent "CI" run, scroll to **Artifacts**). Run the downloaded file.
 
-Confirm it worked — open **PowerShell** (search for it in the Start menu)
-and type:
+It installs into your own user folder — no administrator prompt — and
+bundles its own copy of Node.js, so there is nothing else to install first
+and no version to check.
 
-```powershell
-node --version
-```
+Windows will very likely say **"Windows protected your PC"** the first time
+you run it, since the installer isn't code-signed — click **More info → Run
+anyway**. See Troubleshooting below.
 
-You want `v22.13.0` or higher.
+### Optional — start automatically with Windows
 
-### Step 2 — Get the project files
+The installer offers a checkbox: **Start GW1 Live Trade Prices when
+Windows starts**. Worth turning on — the longer this runs unattended, the
+more price history it builds up, and sell alerts only fire while it's
+actually running. You can flip this on or off later too, from Windows'
+own **Settings → Apps → Startup**.
 
-Download the code as a ZIP from the green **Code** button on the GitHub
-repository page, then extract it somewhere memorable, like
-`C:\Users\YourName\gw1-prices`.
+### Step 2 — Start it
 
-### Step 3 — Start it
+The installer finishes by launching the dashboard for you and opens
+`http://127.0.0.1:8787` in your browser. From then on, use the **GW1 Live
+Trade Prices** shortcut it put on your desktop (and in the Start menu) to
+start it again — no PowerShell, no `npm start`.
 
-In PowerShell:
-
-```powershell
-cd C:\Users\YourName\gw1-prices
-npm start
-```
-
-The first line it prints will say something like
-`GW1 price dashboard -> http://0.0.0.0:8787`. Leave this window open — closing
-it stops the dashboard. Open a browser and go to `http://localhost:8787`.
-
-### Step 4 — Point it at your inventory
+### Step 3 — Point it at your inventory
 
 In the dashboard, under **Your inventory → watch a folder**, paste in your
 GWToolbox export folder:
@@ -302,14 +297,17 @@ automatically every time it starts.
 
 ### Starting it again later
 
-You don't need to repeat any of the setup — just:
+Use the **GW1 Live Trade Prices** desktop or Start menu shortcut again — or,
+if you turned on the startup checkbox above, it's already running by the
+time you log in.
 
-```powershell
-cd C:\Users\YourName\gw1-prices
-npm start
-```
+### Uninstalling
 
-each time you want the dashboard running.
+Uninstalling does **not** delete your accumulated price history.
+`data\prices.db` stays behind at
+`%LOCALAPPDATA%\GW1TradePrices\data\prices.db` — delete that folder
+yourself if you want it gone for good, or keep it and reinstall later to
+pick up right where you left off.
 
 ---
 
@@ -338,6 +336,8 @@ history — everything else rebuilds itself automatically.
 | Changed the password but the old one (or the placeholder) still doesn't work | You need `docker compose --profile lan up -d --force-recreate caddy` specifically — a plain rebuild can leave the old password running. |
 | Browser says the site can't be found / name not resolved | The hostname (`utility` or your Tailscale name) isn't set up on that device yet — see Step 7. |
 | Certificate warning in the browser | Expected the first time — see Step 6. Click through, or install the certificate to make it stop. |
-| `node --version` is older than 22.13 | Reinstall Node.js from nodejs.org, choosing the "Current" download rather than "LTS" if LTS is behind. |
+| `node --version` is older than 22.13 | Reinstall Node.js from nodejs.org, choosing the "Current" download rather than "LTS" if LTS is behind. (Only applies if you're running from source — the Windows installer bundles its own Node, so this doesn't come up there.) |
 | Dashboard is empty / shows no prices right after install | Normal for the first ~30 seconds while it does its first check of all price sources. Run the optional backfill step (Option 1, Step 5) for instant history. |
-| Inventory never updates (Windows) | Confirm the folder path in Step 4 is exactly right, and that you've logged into Guild Wars and visited an outpost at least once since installing GWToolbox — it only writes the file on zoning into a town/outpost. |
+| Inventory never updates (Windows) | Confirm the folder path in Step 3 is exactly right, and that you've logged into Guild Wars and visited an outpost at least once since installing GWToolbox — it only writes the file on zoning into a town/outpost. |
+| `(node:xxxx) ExperimentalWarning: SQLite is an experimental feature and might change at any time` on startup | Expected — the dashboard uses Node's built-in SQLite support, which Node itself still labels experimental. Harmless; everything works normally. |
+| Windows says "Windows protected your PC" when running the installer | Expected — the installer isn't code-signed. Click **More info → Run anyway**. |

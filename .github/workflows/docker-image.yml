@@ -24,3 +24,55 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the Docker image
         run: docker build . --file Dockerfile --tag gw1-live-trade-prices:ci
+
+  windows-installer:
+    runs-on: windows-latest
+    needs: test
+    env:
+      # Pinned exact version — never float "latest v22". Bump deliberately
+      # and re-run this job when a newer 22.x is worth picking up.
+      NODE_VERSION: 22.23.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download portable Node.js runtime
+        shell: pwsh
+        run: |
+          $url = "https://nodejs.org/dist/v$env:NODE_VERSION/node-v$env:NODE_VERSION-win-x64.zip"
+          Invoke-WebRequest -Uri $url -OutFile node.zip
+          Expand-Archive -Path node.zip -DestinationPath node-extracted
+
+      - name: Assemble installer bundle
+        shell: pwsh
+        run: |
+          # Zero npm dependencies means no node_modules to build for win-x64
+          # and no native-module risk — just node.exe itself, plus bin/src/
+          # public/data as they already exist in the repo.
+          $nodeSrcDir = Get-ChildItem -Directory node-extracted | Select-Object -First 1
+          New-Item -ItemType Directory -Path dist\node -Force | Out-Null
+          Copy-Item "$($nodeSrcDir.FullName)\node.exe" dist\node\node.exe
+          Copy-Item "$($nodeSrcDir.FullName)\LICENSE" dist\node\LICENSE
+
+          Copy-Item -Recurse bin dist\bin
+          Copy-Item -Recurse src dist\src
+          Copy-Item -Recurse public dist\public
+
+          New-Item -ItemType Directory -Path dist\data -Force | Out-Null
+          Copy-Item data\gwtoolbox-items.json dist\data\gwtoolbox-items.json
+
+          Copy-Item installer\launch.bat dist\launch.bat
+          Copy-Item installer\launch.vbs dist\launch.vbs
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile installer
+        shell: pwsh
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss'
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GW1TradePrices-Setup
+          path: installer\Output\GW1TradePrices-Setup.exe
