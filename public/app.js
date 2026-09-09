@@ -501,6 +501,39 @@ function renderThreads(threads) {
   ])));
 }
 
+/**
+ * Tells you the dashboard was off for a while and what that means: trader
+ * history has already been backfilled automatically (see server.mjs's
+ * startup catch-up), but trade chat quotes from that window are gone for
+ * good — chat is a live scrolling window with no archive.
+ */
+function renderDowntimeBanner() {
+  const banner = $('#downtime-banner');
+  const last = state.context?.lastCleanShutdown;
+  // Mirrors CATCH_UP_AFTER_MS in server.mjs: below this, pollAll() on its own
+  // has already caught everything back up, so there's nothing to say. A
+  // missing value (first run ever, or an upgrade from before this existed)
+  // is deliberately not treated as "offline forever" — there's no baseline.
+  const STALE_MS = 2 * 60 * 60 * 1000;
+
+  if (!last || Date.now() - last < STALE_MS) {
+    banner.hidden = true;
+    return;
+  }
+
+  const hours = Math.round((Date.now() - last) / 3_600_000);
+  const span = hours < 48 ? `${hours}h` : `${Math.floor(hours / 24)}d ${hours % 24}h`;
+  banner.hidden = false;
+  mount(
+    banner,
+    el('span', { text: `⚠ Offline ${span}.` }),
+    el('span', {
+      text: 'NPC trader history has been backfilled to catch up — trade chat '
+        + "quotes from that window couldn't be recovered (chat has no archive).",
+    }),
+  );
+}
+
 function renderSources() {
   const status = state.context?.sourceStatus ?? {};
   const stats = state.context?.stats ?? {};
@@ -1059,6 +1092,7 @@ async function refresh() {
   renderOverview();
   renderCalendar();
   renderSources();
+  renderDowntimeBanner();
   renderThreads(Array.isArray(threads) ? threads : []);
   $('#clock').textContent = `updated ${new Date().toLocaleTimeString()}`;
 

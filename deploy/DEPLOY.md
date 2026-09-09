@@ -316,6 +316,30 @@ pick up right where you left off.
 The one thing that can't be re-downloaded if lost is your accumulated price
 history — everything else rebuilds itself automatically.
 
+### Automatic (recommended)
+
+Set a backup folder and the dashboard takes care of the rest — on a timer, it
+briefly pauses writes, copies the database, and rotates old copies out on its
+own (the most recent day's worth kept in full, then one per day for two
+weeks). Nothing to remember, nothing to run by hand.
+
+- **Server (Docker):** uncomment the `BACKUP_DIR` line (and its matching bind
+  mount) in `docker-compose.yml`, pointing it at a folder on the host — not
+  the `gw1-data` volume, since backing a volume up into itself protects
+  against nothing — then `docker compose up -d --build`.
+- **Windows / running from source:** add to `.env` (or pass on the command
+  line):
+  ```
+  BACKUP_DIR=C:\Users\YourName\gw1-backups
+  BACKUP_INTERVAL_MINUTES=60
+  ```
+  (`BACKUP_INTERVAL_MINUTES` is optional — it defaults to 60.)
+
+### Manual
+
+If you'd rather not set up automatic backups, close the dashboard first (so
+nothing is mid-write), then:
+
 - **Server (Docker):**
 
   ```bash
@@ -325,8 +349,16 @@ history — everything else rebuilds itself automatically.
 
   Run this from the project folder; it creates a dated `.tar.gz` file there.
 
-- **Windows:** close the dashboard window first (so nothing is mid-write),
-  then copy the whole `data` folder inside the project folder somewhere safe.
+- **Windows:** copy the whole `data` folder (inside the project folder, or —
+  if you used the installer — at `%LOCALAPPDATA%\GW1TradePrices\data`)
+  somewhere safe.
+
+### Restoring
+
+Stop the dashboard, replace `data/prices.db` with the backup file you want to
+restore (rename it back to exactly `prices.db`), delete any leftover
+`data/prices.db-shm` / `data/prices.db-wal` files sitting next to it, then
+start the dashboard again.
 
 ## Troubleshooting
 

@@ -25,6 +25,14 @@ import {
 import { InventoryWatcher } from './watcher.mjs';
 import { createAuthGate } from './auth.mjs';
 import { fetchCustomSource } from './sources/custom.mjs';
+import { Backup } from './backup.mjs';
+
+// A boot more than this long after the last clean shutdown is treated as
+// "real downtime" — worth an unprompted trader-history catch-up rather than
+// waiting for --backfill to be asked for explicitly. Short gaps (a restart
+// to pick up a new version, a crash caught within a couple of minutes) don't
+// need it: pollAll() already re-syncs everything else on every boot.
+const CATCH_UP_AFTER_MS = 2 * 60 * 60 * 1000;
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC_DIR = join(ROOT, 'public');
@@ -154,6 +162,8 @@ export async function startServer({
   watch = null,
   authUser = null,
   authPass = null,
+  backupDir = null,
+  backupIntervalMinutes = 60,
 } = {}) {
   // Half-configured auth (only a user, or only a password) is worse than
   // none: it looks protected but the gate below would never actually block
@@ -166,6 +176,8 @@ export async function startServer({
   const store = openDatabase(dbPath);
   const poller = new Poller(store);
   const watcher = new InventoryWatcher(store, poller);
+  // Opt-in, like --watch and auth: only runs at all once a directory is given.
+  const backup = backupDir ? new Backup(store, dbPath, backupDir) : null;
 
   const routes = {
     '/api/overview': (url) => overview(store, { realm: url.searchParams.get('realm') || null }),
@@ -205,6 +217,7 @@ export async function startServer({
       sourceStatus: store.getContext('sourceStatus') ?? {},
       stats: store.stats(),
       windows: WINDOWS,
+      lastCleanShutdown: store.getContext('lastCleanShutdown'),
     }),
 
     '/api/threads': () => store.threadsFor(null),
@@ -434,9 +447,18 @@ export async function startServer({
 
   if (poll) {
     await poller.pollAll();
-    if (backfill) await poller.run('backfill', () => poller.backfillTraderHistory());
+    // backfillTraderHistory() skips any material that already has real depth,
+    // so it's safe to run unprompted after real downtime — no separate
+    // gap-detection needed, just "was the last shutdown clean and recent?".
+    const lastCleanShutdown = store.getContext('lastCleanShutdown');
+    const realDowntime = !lastCleanShutdown || Date.now() - lastCleanShutdown > CATCH_UP_AFTER_MS;
+    if (backfill || realDowntime) await poller.run('backfill', () => poller.backfillTraderHistory());
     poller.start();
   }
 
-  return { server, store, poller, watcher };
+  if (backup) backup.start(backupIntervalMinutes);
+
+  return {
+    server, store, poller, watcher, backup,
+  };
 }

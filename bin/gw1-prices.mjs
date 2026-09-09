@@ -17,6 +17,8 @@ const { values } = parseArgs({
     'no-poll': { type: 'boolean' },
     'auth-user': { type: 'string' },
     'auth-pass': { type: 'string' },
+    'backup-dir': { type: 'string' },
+    'backup-interval': { type: 'string' },
     help: { type: 'boolean', short: 'h', default: false },
   },
 });
@@ -37,6 +39,9 @@ the environment first, using Node's own built-in support — no dependency.
   --auth-user <u>  require HTTP Basic Auth                [env AUTH_USER]
   --auth-pass <p>  password for --auth-user               [env AUTH_PASS]
                    (both required together — set neither to leave auth off)
+  --backup-dir <d> write periodic database backups here   [env BACKUP_DIR]  (off by default)
+  --backup-interval <n> minutes between backups            [env BACKUP_INTERVAL_MINUTES] (default 60)
+                   (only takes effect once --backup-dir is set)
 `);
   process.exit(0);
 }
@@ -45,7 +50,7 @@ the environment first, using Node's own built-in support — no dependency.
 const envFlag = (name) => /^(1|true|yes)$/i.test(process.env[name] ?? '');
 
 try {
-  await startServer({
+  const { server, store, poller, backup } = await startServer({
     // CLI flag wins if given; otherwise the matching env var; otherwise the
     // built-in default. This is the same precedence --auth-user/--auth-pass
     // already used, now applied consistently to every option, so a plain
@@ -63,7 +68,24 @@ try {
     // export that never becomes part of this process's argv.
     authUser: values['auth-user'] ?? process.env.AUTH_USER ?? null,
     authPass: values['auth-pass'] ?? process.env.AUTH_PASS ?? null,
+    backupDir: values['backup-dir'] ?? process.env.BACKUP_DIR ?? null,
+    backupIntervalMinutes: Number(
+      values['backup-interval'] ?? process.env.BACKUP_INTERVAL_MINUTES ?? 60,
+    ),
   });
+
+  // Recorded so the next boot can tell a clean stop from a crash or a power
+  // loss — the startup catch-up in server.mjs backfills trader history
+  // automatically when this is missing or stale.
+  const shutdown = () => {
+    store.setContext('lastCleanShutdown', Date.now());
+    store.checkpoint();
+    poller.stop();
+    backup?.stop();
+    server.close(() => process.exit(0));
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 } catch (error) {
   console.error(`gw1-prices: ${error.message}`);
   process.exit(1);

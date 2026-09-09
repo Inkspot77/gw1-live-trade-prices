@@ -47,10 +47,18 @@ services:
       # wherever Syncthing/CIFS/rsync actually lands the export on this host —
       # see deploy/DEPLOY.md Part 2 for the three ways to get it there.
       # - /path/on/this/host/inventories:/watch:ro
+      # Uncomment together with BACKUP_DIR above.
+      # - /path/on/this/host/backups:/backups
     environment:
       - PORT=8787
       - HOST=0.0.0.0
       # - WATCH_DIR=/watch
+      # Optional periodic database backups — see deploy/DEPLOY.md's Backups
+      # section. BACKUP_DIR needs a bind mount (below), not the named data
+      # volume, so backups land somewhere on the host you can actually copy
+      # off — a volume backing up into itself protects against nothing.
+      # - BACKUP_DIR=/backups
+      # - BACKUP_INTERVAL_MINUTES=60
       # Optional app-level password gate, independent of the `lan` Caddy
       # profile below. Set both or neither — the process refuses to start
       # with only one. Basic Auth alone is not encryption (see the README's

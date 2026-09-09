@@ -182,6 +182,21 @@ input[type="search"] { min-width: 200px; }
 .strip-cell .value.good { color: var(--status-good-text); }
 .strip-cell .note { color: var(--text-muted); font-size: 12px; }
 
+/* ---------- Downtime catch-up banner ---------- */
+
+.downtime-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--status-warning);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.downtime-banner strong { color: var(--text-primary); }
+
 /* ---------- Layout ---------- */
 
 main {
