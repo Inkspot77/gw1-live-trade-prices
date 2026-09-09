@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-09
+
 ### Added
 - User-added price sources: point the dashboard at any URL that returns a
   JSON list of prices, tell it which fields hold the item name and the
@@ -16,6 +18,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on add, so a typo is reported right away instead of failing silently on
   the next scheduled poll. Item names are matched through the same registry
   trade chat uses, so a recognized name lines up with existing history.
+- A one-click Windows installer (Inno Setup): bundles a portable Node
+  runtime with the app itself, installs to the user's own profile with no
+  administrator prompt, and offers an optional "start with Windows"
+  checkbox. Uninstalling never deletes `data\prices.db`. Built by CI on
+  every push; pushing a `v*` tag now also publishes it as a GitHub Release,
+  with the installer's own version and filename matching the tag.
+- Automatic backups (`BACKUP_DIR` / `BACKUP_INTERVAL_MINUTES`, both opt-in):
+  on a timer, checkpoints the database and copies it to a timestamped file,
+  keeping the 24 most recent copies plus one per day for two more weeks.
+- Startup catch-up: NPC trader history now backfills itself automatically
+  after real downtime (no clean shutdown recorded, or the last one was more
+  than 2 hours ago) instead of only when `--backfill` is passed explicitly
+  — the backfill was already safe to re-run since it skips any material
+  that already has real depth. Graceful `SIGINT`/`SIGTERM` handling records
+  the clean-shutdown timestamp this depends on (there was none before).
+- A dashboard banner surfacing real downtime: "Offline Xh — NPC trader
+  history has been backfilled, trade chat quotes from that window couldn't
+  be recovered."
 
 ### Fixed
 - `.dockerignore` restored — without it, `docker build` would copy `.git/`

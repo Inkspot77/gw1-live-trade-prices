@@ -107,6 +107,25 @@ no dependency, no separate config.
 3. Ensure all tests pass
 4. Your PR will be reviewed and merged if approved
 
+## Cutting a release
+
+`package.json`'s `version` and CHANGELOG.md's version headers should always
+match the git tag that triggers a release — nothing enforces this
+automatically, so it's on whoever cuts the release to keep them in sync:
+
+1. Move `## [Unreleased]`'s contents into a new `## [vX.Y.Z] - YYYY-MM-DD`
+   section (leave a fresh empty `## [Unreleased]` above it).
+2. Bump `"version"` in `package.json` to match.
+3. Commit that, then tag and push:
+   ```bash
+   git tag vX.Y.Z
+   git push origin main vX.Y.Z
+   ```
+   Pushing the tag triggers CI to build the Windows installer (its own
+   version and filename come from the tag itself, via Inno Setup's
+   `/DMyAppVersion`) and publish it as a GitHub Release automatically — see
+   the `release` job in `.github/workflows/docker-image.yml`.
+
 ## Community Guidelines
 
 - Be respectful and inclusive
