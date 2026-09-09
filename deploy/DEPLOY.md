@@ -250,11 +250,14 @@ dashboard can read your inventory export straight from disk.
 
 ### Step 1 — Download and run the installer
 
-Grab the latest `GW1TradePrices-Setup.exe` — while this project doesn't
-publish tagged releases yet, you can get it from the **windows-installer**
-job of any green run on the
+Grab the latest `GW1TradePrices-Setup-*.exe` from the
+[Releases page](https://github.com/Inkspot77/gw1-live-trade-prices/releases)
+and run it. (If no release exists yet, you can also get a build from the
+**windows-installer** job of any green run on the
 [Actions page](https://github.com/Inkspot77/gw1-live-trade-prices/actions)
-(open a recent "CI" run, scroll to **Artifacts**). Run the downloaded file.
+— open a recent "CI" run and scroll to **Artifacts** — though that one's
+version number just reflects the commit it was built from, not a tagged
+release.)
 
 It installs into your own user folder — no administrator prompt — and
 bundles its own copy of Node.js, so there is nothing else to install first
