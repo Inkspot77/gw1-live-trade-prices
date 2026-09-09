@@ -15,6 +15,7 @@ import * as gwtoolbox from './sources/gwtoolbox.mjs';
 import * as presearing from './sources/presearing.mjs';
 import * as legacy from './sources/legacy.mjs';
 import * as wiki from './sources/wiki.mjs';
+import * as custom from './sources/custom.mjs';
 import { evaluateSellAlerts } from './valuation.mjs';
 
 const MINUTE = 60_000;
@@ -26,6 +27,7 @@ export const SCHEDULE = {
   wiki: 6 * HOUR,
   sheet: 12 * HOUR,
   forum: 30 * MINUTE,
+  custom: 30 * MINUTE,
 };
 
 export class Poller {
@@ -215,6 +217,56 @@ export class Poller {
     return `${threads.length} price-check threads`;
   }
 
+  /**
+   * User-added sources, each polled and tracked independently — the same
+   * "one failing never stops the others" rule as every built-in source, so a
+   * mistyped URL in a source someone added shows a red dot on that one entry
+   * rather than breaking the poll loop.
+   */
+  async pollCustomSources() {
+    const configs = this.store.getContext('customSources') ?? [];
+    const enabled = configs.filter((c) => c.enabled !== false);
+    if (!enabled.length) return '0 custom sources configured';
+
+    let totalNew = 0;
+    for (const cfg of enabled) {
+      const label = `custom:${cfg.name || cfg.id}`;
+      try {
+        const { rows, total, skipped } = await custom.fetchCustomSource(cfg);
+        const realm = cfg.realm === 'pre' ? 'pre' : 'post';
+        const observations = rows.map((r) => {
+          // Reuse the same alias/registry matching trade chat gets, so a
+          // user-added source's "Ecto" lands on the same item as everything
+          // else instead of becoming its own disconnected entry. A name the
+          // registry doesn't know is kept as-is rather than dropped — same
+          // "show it, don't discard it" rule inventory import follows.
+          const match = this.registry.match(r.itemRaw, realm)[0];
+          return {
+            ts: Date.now(),
+            source: label,
+            realm,
+            item: match?.name ?? r.itemRaw,
+            category: match?.category ?? null,
+            side: r.side,
+            unitGold: r.unitGold,
+            currency: 'gold',
+            qty: r.qty,
+            confidence: 1,
+            seller: null,
+            raw: null,
+          };
+        });
+        const inserted = this.store.saveObservations(observations);
+        totalNew += inserted;
+        this.mark(label, true, `${total} rows, ${inserted} new${skipped ? `, ${skipped} skipped` : ''}`);
+      } catch (error) {
+        this.mark(label, false, error.message);
+        this.log(`[poll] ${label} FAILED: ${error.message}`);
+      }
+    }
+    return `${enabled.length} custom source${enabled.length === 1 ? '' : 's'}, ${totalNew} new quotes`;
+  }
+
   /** One pass over everything, in dependency order. */
   async pollAll() {
     // The sheet sets the Black Dye rate and extends the item vocabulary, so it
@@ -228,6 +280,7 @@ export class Poller {
     await this.run('alerts', () => this.checkSellAlerts());
     await this.run('wiki', () => this.pollWiki());
     await this.run('forum', () => this.pollForum());
+    await this.run('custom', () => this.pollCustomSources());
     this.store.checkpoint();
   }
 
@@ -246,6 +299,7 @@ export class Poller {
     every(SCHEDULE.wiki, 'wiki', () => this.pollWiki());
     every(SCHEDULE.sheet, 'sheet', () => this.pollSheet());
     every(SCHEDULE.forum, 'forum', () => this.pollForum());
+    every(SCHEDULE.custom, 'custom', () => this.pollCustomSources());
     this.log('[poll] schedules started');
   }
 

@@ -986,6 +986,59 @@ async function saveWatchFolder(enabled) {
   await refreshInventory();
 }
 
+/* ------------------------------------------------------------ custom sources */
+
+async function renderCustomSources() {
+  const sources = await fetchJson('/api/sources/custom');
+  const list = Array.isArray(sources) ? sources : [];
+  $('#custom-sources-list').replaceChildren(...list.map((s) => {
+    const removeButton = el('button', { type: 'button', class: 'icon-button', text: 'Remove' });
+    removeButton.addEventListener('click', async () => {
+      await fetch('/api/sources/custom/remove', { method: 'POST', body: JSON.stringify({ id: s.id }) });
+      await renderCustomSources();
+      await refresh();
+    });
+    return el('div', { class: 'tt-row', style: 'padding:4px 0' }, [
+      el('span', { text: `${s.name} · ${s.realm === 'pre' ? 'Pre' : 'Post'}` }),
+      removeButton,
+    ]);
+  }));
+}
+
+async function addCustomSource() {
+  const status = $('#cs-status');
+  const payload = {
+    name: $('#cs-name').value.trim(),
+    url: $('#cs-url').value.trim(),
+    realm: $('#cs-realm').value,
+    path: $('#cs-path').value.trim(),
+    itemField: $('#cs-item-field').value.trim(),
+    priceField: $('#cs-price-field').value.trim(),
+    sideField: $('#cs-side-field').value.trim(),
+    side: $('#cs-side').value,
+  };
+  if (!payload.name || !payload.url || !payload.itemField || !payload.priceField) {
+    status.textContent = 'Name, URL, item field and price field are all required.';
+    return;
+  }
+
+  status.textContent = 'Checking…';
+  const response = await fetch('/api/sources/custom', { method: 'POST', body: JSON.stringify(payload) });
+  const result = await response.json();
+  if (result.error) {
+    status.textContent = result.error;
+    return;
+  }
+
+  status.textContent = `Added — found ${result.testedRows} usable row${result.testedRows === 1 ? '' : 's'} `
+    + `out of ${result.testedTotal} in the feed.`;
+  for (const id of ['cs-name', 'cs-url', 'cs-path', 'cs-item-field', 'cs-price-field', 'cs-side-field']) {
+    $(`#${id}`).value = '';
+  }
+  await renderCustomSources();
+  await refresh();
+}
+
 /* -------------------------------------------------------------------- boot */
 
 async function fetchJson(url) {
@@ -1077,6 +1130,7 @@ function wire() {
     $('#inv-status').textContent = '';
     await refreshInventory();
   });
+  $('#cs-add').addEventListener('click', addCustomSource);
   $('#check-go').addEventListener('click', runCheck);
   $('#check-price').addEventListener('keydown', (e) => { if (e.key === 'Enter') runCheck(); });
   $('#detail-close').addEventListener('click', () => $('#detail').close());
@@ -1102,6 +1156,7 @@ function wire() {
 
 wire();
 await refresh();
+await renderCustomSources();
 
 // Deep link: /?item=Glob%20of%20Ectoplasm&realm=post opens straight to detail.
 const params = new URLSearchParams(location.search);

@@ -173,6 +173,44 @@
       <p class="sub">Every panel above is built from these. A red dot means that source last failed.</p>
       <div class="sources" id="sources"></div>
       <p class="sub mono db-stats" id="db-stats"></p>
+
+      <details id="custom-sources">
+        <summary class="muted">add your own source</summary>
+        <p class="sub" style="margin-top:8px">
+          Any site that returns a JSON list of prices — no code, just point it
+          at the field names. It's polled every 30 minutes alongside
+          everything else, and item names are matched the same way trade chat
+          is, so a name it already knows (like "Ecto") lines up with existing
+          history automatically.
+        </p>
+        <div id="custom-sources-list"></div>
+        <div class="checker-row">
+          <input type="text" id="cs-name" placeholder="Name, e.g. MyPriceSite" aria-label="Source name">
+          <input type="text" id="cs-url" placeholder="https://example.com/prices.json" aria-label="Source URL">
+        </div>
+        <div class="checker-row">
+          <select id="cs-realm" aria-label="Economy">
+            <option value="post">Post-Searing</option>
+            <option value="pre">Pre-Searing</option>
+          </select>
+          <input type="text" id="cs-path" placeholder="Path to the list, if nested (e.g. data.items)" aria-label="Path to list">
+        </div>
+        <div class="checker-row">
+          <input type="text" id="cs-item-field" placeholder="Item name field, e.g. name" aria-label="Item field">
+          <input type="text" id="cs-price-field" placeholder="Price field, e.g. price" aria-label="Price field">
+        </div>
+        <div class="checker-row">
+          <input type="text" id="cs-side-field" placeholder="Buy/sell field, if it has one (optional)" aria-label="Side field">
+          <select id="cs-side" aria-label="Default side, if no side field">
+            <option value="ask">Treat as: asking price</option>
+            <option value="bid">Treat as: buying offer</option>
+          </select>
+        </div>
+        <div class="checker-row">
+          <button type="button" class="icon-button primary" id="cs-add">Add source</button>
+        </div>
+        <div id="cs-status" class="sub"></div>
+      </details>
     </div>
   </aside>
 </main>

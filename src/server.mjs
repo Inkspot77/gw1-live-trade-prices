@@ -9,6 +9,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
 
 import { openDatabase } from './db.mjs';
 import { Poller } from './poller.mjs';
@@ -23,6 +24,7 @@ import {
 } from './valuation.mjs';
 import { InventoryWatcher } from './watcher.mjs';
 import { createAuthGate } from './auth.mjs';
+import { fetchCustomSource } from './sources/custom.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC_DIR = join(ROOT, 'public');
@@ -219,6 +221,9 @@ export async function startServer({
       thresholds: { fire: SELL_ALERT_Z, clear: SELL_CLEAR_Z },
     }),
 
+    /** User-added sources, in whatever order they were added. */
+    '/api/sources/custom': () => store.getContext('customSources') ?? [],
+
     '/api/search': (url) => {
       const q = String(url.searchParams.get('q') ?? '').toLowerCase().trim();
       if (q.length < 2) return [];
@@ -293,6 +298,58 @@ export async function startServer({
       store.saveInventory([]);
       store.setContext('inventoryMeta', null);
       return { ok: true };
+    },
+
+    /**
+     * Add a user-defined price source: a URL returning a JSON array, plus the
+     * field names that mean "item" and "price" within each entry. Tested once
+     * immediately so a typo in a field name is reported right away rather
+     * than silently producing zero rows on the next scheduled poll.
+     */
+    '/api/sources/custom': async (body) => {
+      const cfg = JSON.parse(body || '{}');
+      const { name, url, itemField, priceField } = cfg;
+      if (!name || !url || !itemField || !priceField) {
+        return { error: 'name, url, itemField and priceField are all required' };
+      }
+
+      const entry = {
+        id: randomUUID(),
+        name: String(name).slice(0, 60),
+        url: String(url),
+        realm: cfg.realm === 'pre' ? 'pre' : 'post',
+        path: String(cfg.path ?? ''),
+        itemField: String(itemField),
+        priceField: String(priceField),
+        sideField: cfg.sideField ? String(cfg.sideField) : null,
+        side: cfg.side === 'bid' ? 'bid' : 'ask',
+        qtyField: cfg.qtyField ? String(cfg.qtyField) : null,
+        enabled: true,
+        addedAt: Date.now(),
+      };
+
+      let test;
+      try {
+        test = await fetchCustomSource(entry);
+      } catch (error) {
+        return { error: `Could not use this source: ${error.message}` };
+      }
+
+      const existing = store.getContext('customSources') ?? [];
+      store.setContext('customSources', [...existing, entry]);
+      // Poll every configured custom source now (not just this one) rather
+      // than making the user wait up to 30 minutes to see it show up — cheap,
+      // and pollCustomSources() already marks each source's own status.
+      await poller.pollCustomSources();
+      return { ok: true, source: entry, testedRows: test.rows.length, testedTotal: test.total };
+    },
+
+    '/api/sources/custom/remove': (body) => {
+      const { id } = JSON.parse(body || '{}');
+      const existing = store.getContext('customSources') ?? [];
+      const next = existing.filter((s) => s.id !== id);
+      store.setContext('customSources', next);
+      return { ok: true, removed: existing.length - next.length };
     },
   };
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- User-added price sources: point the dashboard at any URL that returns a
+  JSON list of prices, tell it which fields hold the item name and the
+  price, and it's polled every 30 minutes alongside the built-in sources —
+  no code change needed. Configured and managed entirely from the dashboard
+  (Sources → add your own source); tested against the real URL immediately
+  on add, so a typo is reported right away instead of failing silently on
+  the next scheduled poll. Item names are matched through the same registry
+  trade chat uses, so a recognized name lines up with existing history.
+
 ### Fixed
 - `.dockerignore` restored — without it, `docker build` would copy `.git/`
   and any local `data/prices.db*` into the image.

@@ -67,6 +67,18 @@ That last one is worth calling out: the wiki isn't a price source, it's a
 particular item today, that item usually gets scarcer and pricier for a
 while — so the dashboard flags it.
 
+### Adding a source of your own
+
+If you know a site that publishes prices as a plain JSON list, you don't need
+to touch any code to use it — under **Sources → add your own source** in the
+dashboard, give it the page's address and the names of the fields that hold
+the item and the price (most JSON price feeds use something like `name` and
+`price`, but you tell it what yours actually calls them). It's checked
+immediately, so a typo shows up right away instead of silently doing nothing.
+Item names it already recognizes (like "Ecto") line up with existing price
+history automatically; anything it doesn't recognize still shows up under
+its own name rather than being dropped.
+
 ## Why it remembers prices instead of just showing the latest one
 
 None of the sources above keep a real history on their own. Trade chat is a
