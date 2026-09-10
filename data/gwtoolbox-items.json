@@ -285,5 +285,28 @@
   "0a009224d00a01": "Vial of Dye [Black]",
   "0a009224d00c01": "Vial of Dye [White]",
   "0a009224d00d01": "Vial of Dye [Pink]"
+ },
+ "other_items": {
+  "2989": "Identification Kit",
+  "2991": "Expert Salvage Kit",
+  "2992": "Salvage Kit",
+  "5585": "Dwarven Ale",
+  "5882": "Phantom Key",
+  "5899": "Superior Identification Kit",
+  "5900": "Superior Salvage Kit",
+  "15479": "Red Bean Cake",
+  "17061": "Bowl of Skalefin Soup",
+  "19173": "Bottle of Vabbian Wine",
+  "21488": "Wintergreen Candy Cane",
+  "21492": "Fruitcake",
+  "21833": "Lunar Token",
+  "22269": "Birthday Cupcake",
+  "22644": "Chocolate Bunny",
+  "22751": "Lockpick",
+  "24593": "Aged Dwarven Ale",
+  "31151": "Blue Rock Candy",
+  "31152": "Green Rock Candy",
+  "31153": "Red Rock Candy",
+  "35121": "War Supplies"
  }
 }

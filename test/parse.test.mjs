@@ -279,6 +279,38 @@ test('model ids resolve to item names and stacks aggregate across bags', () => {
   assert.equal(shard.quantity, 17, 'character 12 + hero 5');
 });
 
+test('other_items model ids (kits, keys, consumables) resolve like materials', () => {
+  const items = [{ modelId: 22751, quantity: 2, fingerprint: 'zz', hint: null }];
+  const [row] = resolveNames(items, { registry });
+  assert.equal(row.name, 'Lockpick');
+  assert.equal(row.resolvedVia, 'model-id');
+});
+
+test('runes and insignias resolve by their built-in fingerprint catalog', () => {
+  const items = [{
+    modelId: null,
+    quantity: 1,
+    fingerprint: nameFingerprint('08038225300423000201020002aaaa'),
+    hint: null,
+  }];
+  const [row] = resolveNames(items, { registry });
+  assert.equal(row.name, 'Rune of Attunement');
+  assert.equal(row.resolvedVia, 'catalog');
+});
+
+test('a learned fingerprint still outranks the built-in catalog', () => {
+  const items = [{
+    modelId: null,
+    quantity: 1,
+    fingerprint: nameFingerprint('08038225300423000201020002aaaa'),
+    hint: null,
+  }];
+  const learned = new Map([[items[0].fingerprint, 'Corrected Name']]);
+  const [row] = resolveNames(items, { registry, learned });
+  assert.equal(row.name, 'Corrected Name');
+  assert.equal(row.resolvedVia, 'learned');
+});
+
 test('the name fingerprint ignores the stat text that follows it', () => {
   // Two items of the same type with different stats share a name fingerprint.
   const a = nameFingerprint('0a3e010a000201020002aaaa');

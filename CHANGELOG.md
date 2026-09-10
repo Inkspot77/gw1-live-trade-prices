@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Inventory import identified almost nothing beyond the ~30 crafting
+  materials: consumables, kits, keys and similar stackable goods had no
+  decimal-model-id entry at all, and runes/insignias/dyes were sitting
+  unused in `data/gwtoolbox-items.json` (only their names were pulled into
+  the trade-chat registry; the exact fingerprints keying them were never
+  read back for inventory rows). Added an `other_items` model-id table
+  (sourced from GWCA's `ItemIDs.h` and cross-checked against the Guild Wars
+  Wiki, kept out of the trade-chat alias matcher on purpose) and a new
+  fingerprint-catalog resolution tier that wires up the existing
+  runes/insignias/dyes data. On a real account export this roughly doubled
+  the items identified without any manual naming.
+
 ## [1.2.0] - 2026-09-09
 
 ### Added

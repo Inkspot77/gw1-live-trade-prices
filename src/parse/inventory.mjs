@@ -50,6 +50,17 @@ const NAME_STAT_SEPARATOR = '000201020002';
  * Model ids are the reliable identifier. Build the lookup once from the same
  * dictionary the trade-chat parser uses: keys are `<type><model>` in hex, so
  * "0b03a2" is item type 0x0b, model 0x03a2 - Glob of Ectoplasm, model 930.
+ *
+ * `other_items` covers stackable goods outside that materials/Zcoins item
+ * type - consumables, kits, keys - that have no natural place in the
+ * trade-chat price registry (they're not priced there) but are still worth
+ * naming on sight. It's a plain decimal model id -> name map, sourced from
+ * GWCA's ItemIDs.h (gwdevhub's community-maintained internal item ids,
+ * https://github.com/GregLando113/GWCA) and cross-checked against the Guild
+ * Wars Wiki for display spelling. Deliberately excluded from
+ * items.mjs#loadGwToolbox(), so it cannot feed the alias matcher that
+ * attributes trade-chat mentions to a price series - a wrong entry here only
+ * mislabels a row in your own inventory, not someone else's price history.
  */
 function buildModelIndex() {
   const raw = JSON.parse(readFileSync(`${ROOT}data/gwtoolbox-items.json`, 'utf8'));
@@ -59,6 +70,10 @@ function buildModelIndex() {
     const modelId = Number.parseInt(key.slice(2, 6), 16);
     if (Number.isFinite(modelId) && !byModel.has(modelId)) byModel.set(modelId, name);
   }
+  for (const [key, name] of Object.entries(raw.other_items ?? {})) {
+    const modelId = Number(key);
+    if (Number.isFinite(modelId) && !byModel.has(modelId)) byModel.set(modelId, name);
+  }
   return byModel;
 }
 
@@ -66,6 +81,25 @@ let MODEL_INDEX = null;
 export function modelIndex() {
   MODEL_INDEX ??= buildModelIndex();
   return MODEL_INDEX;
+}
+
+/**
+ * Runes, insignias and dyes carry no distinct decimal model id (a rune's
+ * model id only says "rune"; the attribute and tier live in its stats), so
+ * `data/gwtoolbox-items.json`'s `runes_insignias` keys them instead by their
+ * exact name-fingerprint - the same hex head `nameFingerprint()` derives from
+ * an item's encoded `d` field. Built once and reused as a second, still
+ * built-in, identification tier alongside model id.
+ */
+function buildFingerprintCatalog() {
+  const raw = JSON.parse(readFileSync(`${ROOT}data/gwtoolbox-items.json`, 'utf8'));
+  return new Map(Object.entries(raw.runes_insignias ?? {}));
+}
+
+let FINGERPRINT_CATALOG = null;
+export function fingerprintCatalog() {
+  FINGERPRINT_CATALOG ??= buildFingerprintCatalog();
+  return FINGERPRINT_CATALOG;
 }
 
 /**
@@ -212,12 +246,15 @@ export function parsePastedInventory(text) {
  * Attach a canonical item name to each row.
  *
  * Order matters: a name you typed wins, then anything you have previously
- * taught us about this fingerprint, then the model id, then the registry's
- * alias matcher against any readable hint. Rows that stay unresolved are kept -
- * they are still your property, and dropping them would understate what you own.
+ * taught us about this fingerprint (a correction, so it outranks every built-in
+ * source), then the model id, then the built-in rune/insignia/dye fingerprint
+ * catalog, then the registry's alias matcher against any readable hint. Rows
+ * that stay unresolved are kept - they are still your property, and dropping
+ * them would understate what you own.
  */
 export function resolveNames(items, { registry = null, learned = new Map() } = {}) {
   const models = modelIndex();
+  const catalog = fingerprintCatalog();
   return items.map((item) => {
     let name = null;
     let via = null;
@@ -234,6 +271,10 @@ export function resolveNames(items, { registry = null, learned = new Map() } = {
     if (!name && item.modelId !== null && models.has(item.modelId)) {
       name = models.get(item.modelId);
       via = 'model-id';
+    }
+    if (!name && item.fingerprint && catalog.has(item.fingerprint)) {
+      name = catalog.get(item.fingerprint);
+      via = 'catalog';
     }
     if (!name && item.hint && registry) {
       const matched = registry.match(item.hint);
