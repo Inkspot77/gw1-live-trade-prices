@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-09
+
 ### Fixed
 - Inventory import identified almost nothing beyond the ~30 crafting
   materials: consumables, kits, keys and similar stackable goods had no
