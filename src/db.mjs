@@ -78,9 +78,23 @@ CREATE TABLE IF NOT EXISTS inventory_items (
 CREATE INDEX IF NOT EXISTS idx_inv_name ON inventory_items (name);
 
 -- Fingerprints you have named by hand. This is what makes unidentified items a
--- one-time cost rather than a recurring one.
+-- one-time cost rather than a recurring one — for items whose encoded name has
+-- no random component, so every instance shares one fingerprint forever.
 CREATE TABLE IF NOT EXISTS item_fingerprints (
   fingerprint TEXT PRIMARY KEY,
+  item        TEXT NOT NULL,
+  learned_at  INTEGER NOT NULL
+);
+
+-- Model ids you have named by hand. A randomly-generated weapon or armor
+-- piece's encoded description embeds its rolled prefix/suffix/inherent mods
+-- right alongside the base name, so no two "Sundering X of Y" drops share a
+-- fingerprint even when X is identical — teaching one by fingerprint alone
+-- never generalizes. The model id, in contrast, identifies the item's visual
+-- skin, which mods never change, so one taught name here covers every past
+-- and future drop of that same base item regardless of what it rolls with.
+CREATE TABLE IF NOT EXISTS item_models (
+  model_id    INTEGER PRIMARY KEY,
   item        TEXT NOT NULL,
   learned_at  INTEGER NOT NULL
 );
@@ -162,6 +176,9 @@ export class Store {
         VALUES (?, ?, ?, ?, ?, ?, ?)`),
       learnFingerprint: db.prepare(`
         INSERT OR REPLACE INTO item_fingerprints (fingerprint, item, learned_at)
+        VALUES (?, ?, ?)`),
+      learnModel: db.prepare(`
+        INSERT OR REPLACE INTO item_models (model_id, item, learned_at)
         VALUES (?, ?, ?)`),
     };
   }
@@ -393,6 +410,22 @@ export class Store {
   learnedFingerprints() {
     const rows = this.db.prepare('SELECT fingerprint, item FROM item_fingerprints').all();
     return new Map(rows.map((r) => [r.fingerprint, r.item]));
+  }
+
+  /**
+   * Teach the importer that a model id — the item's visual skin, not its
+   * exact rolled mods — is a particular item. See item_models in the schema
+   * for why this exists alongside learnFingerprint rather than instead of it.
+   */
+  learnModel(modelId, item) {
+    this.stmt.learnModel.run(modelId, item, Date.now());
+    this.db.prepare('UPDATE inventory_items SET name = ? WHERE model_id = ?')
+      .run(item, modelId);
+  }
+
+  learnedModels() {
+    const rows = this.db.prepare('SELECT model_id AS modelId, item FROM item_models').all();
+    return new Map(rows.map((r) => [r.modelId, r.item]));
   }
 
   /**

@@ -802,7 +802,7 @@ function renderInventory(data) {
           el('td', { text: r.name ?? r.hint ?? `unknown (${(r.fingerprint ?? '').slice(0, 12)}…)` }),
           el('td', { class: 'num', text: String(r.quantity) }),
           el('td', { class: 'muted', text: r.reason }),
-          el('td', {}, [r.fingerprint && !r.name ? nameItControl(r.fingerprint) : el('span', { class: 'muted', text: '—' })]),
+          el('td', {}, [r.fingerprint && !r.name ? nameItControl(r.fingerprint, r.modelId) : el('span', { class: 'muted', text: '—' })]),
         ]))),
       ]),
     ])
@@ -813,10 +813,20 @@ function renderInventory(data) {
 
 /**
  * Naming an unidentified item once teaches the importer permanently: the same
- * fingerprint resolves on every future import.
+ * fingerprint resolves on every future import. When a model id is present
+ * too (most equipment), it's taught alongside the fingerprint, so a random
+ * drop's rolled mods (which change its fingerprint every time) don't force
+ * re-naming the same base item on every future drop.
  */
-function nameItControl(fingerprint) {
-  const input = el('input', { type: 'text', list: 'item-options', placeholder: 'Item name' });
+function nameItControl(fingerprint, modelId) {
+  const input = el('input', {
+    type: 'text',
+    list: 'item-options',
+    placeholder: 'Item name',
+    title: modelId
+      ? 'This also names every other item sharing this model id, mods and all.'
+      : undefined,
+  });
   const save = el('button', { class: 'icon-button', type: 'button', text: 'Save' });
   const wrap = el('div', { class: 'name-it' }, [input, save]);
 
@@ -826,7 +836,7 @@ function nameItControl(fingerprint) {
     save.disabled = true;
     await fetch('/api/inventory/name', {
       method: 'POST',
-      body: JSON.stringify({ fingerprint, item }),
+      body: JSON.stringify({ fingerprint, item, modelId }),
     });
     await refreshInventory();
   };

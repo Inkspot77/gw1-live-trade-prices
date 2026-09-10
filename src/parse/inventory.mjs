@@ -246,13 +246,24 @@ export function parsePastedInventory(text) {
  * Attach a canonical item name to each row.
  *
  * Order matters: a name you typed wins, then anything you have previously
- * taught us about this fingerprint (a correction, so it outranks every built-in
- * source), then the model id, then the built-in rune/insignia/dye fingerprint
- * catalog, then the registry's alias matcher against any readable hint. Rows
- * that stay unresolved are kept - they are still your property, and dropping
- * them would understate what you own.
+ * taught us about this exact fingerprint (a correction, so it outranks every
+ * built-in source), then the built-in model id table, then the built-in
+ * rune/insignia/dye fingerprint catalog, then a model id you have taught us,
+ * then the registry's alias matcher against any readable hint. Rows that
+ * stay unresolved are kept - they are still your property, and dropping them
+ * would understate what you own.
+ *
+ * Fingerprint vs. model id, for randomly-generated equipment: a weapon or
+ * armor piece's encoded description embeds its rolled prefix/suffix/inherent
+ * mods right next to the base name (Toolbox exports the item's *complete*
+ * name string, mods included, not just its base type), so two drops of the
+ * same base item with different mods never share a fingerprint - teaching
+ * one fingerprint never resolves the next roll of the same item. The model
+ * id identifies the item's visual skin, which mods never change, so a name
+ * taught against a model id (via learnModel) resolves every past and future
+ * drop of that same base item regardless of what it rolls with.
  */
-export function resolveNames(items, { registry = null, learned = new Map() } = {}) {
+export function resolveNames(items, { registry = null, learned = new Map(), learnedModels = new Map() } = {}) {
   const models = modelIndex();
   const catalog = fingerprintCatalog();
   return items.map((item) => {
@@ -275,6 +286,10 @@ export function resolveNames(items, { registry = null, learned = new Map() } = {
     if (!name && item.fingerprint && catalog.has(item.fingerprint)) {
       name = catalog.get(item.fingerprint);
       via = 'catalog';
+    }
+    if (!name && item.modelId !== null && learnedModels.has(item.modelId)) {
+      name = learnedModels.get(item.modelId);
+      via = 'learned-model-id';
     }
     if (!name && item.hint && registry) {
       const matched = registry.match(item.hint);

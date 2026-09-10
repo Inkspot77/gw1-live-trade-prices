@@ -334,6 +334,29 @@ test('a learned fingerprint outranks every other resolution route', () => {
   assert.equal(row.resolvedVia, 'learned');
 });
 
+test('a learned model id resolves a random drop despite a fresh fingerprint', () => {
+  // Two rolls of the same weapon: same model id, different mods -> different
+  // fingerprint each time (Toolbox's exported name embeds the rolled mods).
+  // A model id taught from roll #1 must still resolve roll #2.
+  const rollOne = { modelId: 45000, quantity: 1, fingerprint: 'sundering-of-fortitude', hint: null };
+  const rollTwo = { modelId: 45000, quantity: 1, fingerprint: 'vampiric-of-enchanting', hint: null };
+  const learnedModels = new Map([[45000, 'Totem Axe']]);
+  const [row] = resolveNames([rollTwo], { registry, learnedModels });
+  assert.equal(row.name, 'Totem Axe');
+  assert.equal(row.resolvedVia, 'learned-model-id');
+  // Sanity: roll #1's own fingerprint plays no part in resolving roll #2.
+  assert.notEqual(rollOne.fingerprint, rollTwo.fingerprint);
+});
+
+test('a learned fingerprint still outranks a learned model id', () => {
+  const items = [{ modelId: 45000, quantity: 1, fingerprint: 'exact-roll', hint: null }];
+  const learned = new Map([['exact-roll', 'Sundering Totem Axe of Fortitude (kept)']]);
+  const learnedModels = new Map([[45000, 'Totem Axe']]);
+  const [row] = resolveNames(items, { registry, learned, learnedModels });
+  assert.equal(row.name, 'Sundering Totem Axe of Fortitude (kept)');
+  assert.equal(row.resolvedVia, 'learned');
+});
+
 test('unidentified items are kept, not dropped', () => {
   const items = [{ modelId: 99999, quantity: 3, fingerprint: 'zzz', hint: null }];
   const rows = aggregate(resolveNames(items, { registry }));

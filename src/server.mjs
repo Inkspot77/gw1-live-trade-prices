@@ -281,10 +281,17 @@ export async function startServer({
 
     /** Teach the importer what an unidentified fingerprint actually is. */
     '/api/inventory/name': (body) => {
-      const { fingerprint, item } = JSON.parse(body || '{}');
+      const { fingerprint, item, modelId } = JSON.parse(body || '{}');
       if (!fingerprint || !item) return { error: 'fingerprint and item are both required' };
       store.learnFingerprint(String(fingerprint), String(item));
-      return { ok: true, fingerprint, item };
+      // modelId (when present) identifies the item's skin rather than this one
+      // roll's mods, so teaching it here also resolves every other drop of the
+      // same base item - see resolveNames() for why the two are learned
+      // separately rather than one covering the other.
+      const parsedModelId = Number(modelId);
+      const learnedModelId = Number.isFinite(parsedModelId) && parsedModelId > 0 ? parsedModelId : null;
+      if (learnedModelId) store.learnModel(learnedModelId, String(item));
+      return { ok: true, fingerprint, item, modelId: learnedModelId };
     },
 
     /** Re-run the alert engine now instead of waiting for the next poll. */

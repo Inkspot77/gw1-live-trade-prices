@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Randomly-generated equipment (a weapon or armor piece rolled with a
+  prefix/suffix/inherent mod — "Sundering", "Ebon", "of the Necromancer",
+  etc.) never resolved to a name, even after being taught one, because
+  GWToolbox's export embeds the item's *complete* name — mods included — in
+  its encoded description. Two rolls of the same base item never share a
+  fingerprint, so teaching one fingerprint never covered the next drop.
+  Naming an item now also teaches its model id (which identifies the item's
+  skin, not its rolled mods) when one is present, so one taught name covers
+  every past and future drop of that same base item regardless of mods.
+
 ## [1.2.1] - 2026-09-09
 
 ### Fixed

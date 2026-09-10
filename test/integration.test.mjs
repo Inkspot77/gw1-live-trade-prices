@@ -149,6 +149,25 @@ test('database stores inventory correctly', async () => {
   assert.ok(items.some((i) => i.name === 'Obsidian Shard' && i.quantity === 50));
 });
 
+test('learning a model id retroactively names every unidentified row sharing it', () => {
+  const store = openDatabase(':memory:');
+
+  // Two rolls of the same weapon, imported before either was ever named:
+  // same model id, different fingerprint (different rolled mods each time).
+  store.saveInventory([
+    { modelId: 45000, fingerprint: 'sundering-of-fortitude', realm: 'post', quantity: 1, locations: [] },
+    { modelId: 45000, fingerprint: 'vampiric-of-enchanting', realm: 'post', quantity: 1, locations: [] },
+  ]);
+  assert.ok(store.inventory().every((i) => !i.name), 'both start unnamed');
+
+  store.learnModel(45000, 'Totem Axe');
+
+  const items = store.inventory();
+  assert.equal(items.length, 2);
+  assert.ok(items.every((i) => i.name === 'Totem Axe'), 'both rolls resolve from one taught model id');
+  assert.deepEqual(store.learnedModels(), new Map([[45000, 'Totem Axe']]));
+});
+
 test('registry creates items correctly', () => {
   const registry = createRegistry();
 

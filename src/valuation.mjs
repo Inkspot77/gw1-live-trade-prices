@@ -158,7 +158,8 @@ export function valueInventory(store, poller, now = Date.now()) {
 /** Shared by the file-import and paste paths. */
 export function importInventory(store, poller, parsed, source) {
   const learned = store.learnedFingerprints();
-  const resolved = resolveNames(parsed.items, { registry: poller.registry, learned });
+  const learnedModels = store.learnedModels();
+  const resolved = resolveNames(parsed.items, { registry: poller.registry, learned, learnedModels });
   const rows = aggregate(resolved).map((row) => ({
     ...row,
     realm: row.name
