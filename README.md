@@ -247,6 +247,19 @@ history over time and the individual quotes that fed into it.
   actual worth depends on its exact stats and mods, which vary too much for
   a single number to mean anything. Those show up as linked forum
   price-check discussions instead of a price.
+- **The optional weapon/armor catalog isn't complete, especially for rare or
+  self-crafted gear.** It's built from what other players' Guild Wars
+  clients have happened to see, so a common, widely-dropped skin usually
+  resolves right away while something you crafted or farmed yourself may
+  not yet be in it. Customized items are hit disproportionately here, since
+  customizing is something you do to gear you're actually using, not a
+  common drop lots of other players also have. When an item shows no name
+  and no stat hint at all, the unidentified-items list shows exactly which
+  character, bag, and slot it's sitting in — open that slot in Guild Wars or
+  GWToolbox, read the real name off the tooltip there, and type it into the
+  box next to it. That teaches the item's model id permanently, resolving
+  every past and future drop of that same base item regardless of what it's
+  rolled with.
 - **The upstream sources aren't always up.** Every source is checked
   independently, so if one goes down or gets slow, only that one shows as
   stale — the rest of the dashboard keeps working normally.
