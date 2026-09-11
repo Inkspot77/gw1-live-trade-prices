@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-11
+
+### Added
+- A "Where" column on unidentified inventory rows, showing exactly which
+  character/chest, bag, and slot an item is sitting in. A modded or
+  customized weapon's encoded name bakes its rolled stats into the string,
+  which can't be decoded offline — no string table exists outside a running
+  client — so when an item also has no readable stat hint to go by, there
+  was previously no way to identify it at all short of guessing. Now you can
+  open that exact bag slot in Guild Wars or GWToolbox and read the real name
+  straight off the tooltip, then type it into the existing "Name it" box.
+  Naming it there already taught both the fingerprint and the model id in
+  one step (unchanged) — this only adds a way to find out what to type.
+- The item cell in that same table now shows its model id in a hover
+  tooltip, for anyone who wants to cross-reference it elsewhere.
+
 ## [1.5.0] - 2026-09-11
 
 ### Changed

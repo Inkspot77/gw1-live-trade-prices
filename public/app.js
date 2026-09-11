@@ -795,12 +795,17 @@ function renderInventory(data) {
         el('thead', {}, [el('tr', {}, [
           el('th', { scope: 'col', text: 'Item' }),
           el('th', { scope: 'col', class: 'num', text: 'Qty' }),
+          el('th', { scope: 'col', text: 'Where' }),
           el('th', { scope: 'col', text: 'Why' }),
           el('th', { scope: 'col', text: 'Name it' }),
         ])]),
         el('tbody', {}, data.unpriced.map((r) => el('tr', {}, [
-          el('td', { text: r.name ?? r.hint ?? `unknown (${(r.fingerprint ?? '').slice(0, 12)}…)` }),
+          el('td', {
+            title: r.modelId !== null && r.modelId !== undefined ? `model id ${r.modelId}` : undefined,
+            text: r.name ?? r.hint ?? `unknown (${(r.fingerprint ?? '').slice(0, 12)}…)`,
+          }),
           el('td', { class: 'num', text: String(r.quantity) }),
+          el('td', { class: 'muted', text: locationSummary(r.locations) }),
           el('td', { class: 'muted', text: r.reason }),
           el('td', {}, [r.fingerprint && !r.name ? nameItControl(r.fingerprint, r.modelId) : el('span', { class: 'muted', text: '—' })]),
         ]))),
@@ -809,6 +814,24 @@ function renderInventory(data) {
     : null;
 
   mount(body, table, unpriced);
+}
+
+/**
+ * Where to physically go look at an item you can't otherwise identify. An
+ * item's encoded name can't be decoded offline - no string table exists
+ * outside a running client - so when it also has no readable hint (no rolled
+ * stats to go by either), the only way a person can put a real name to it is
+ * to open that exact bag slot in Guild Wars or GWToolbox itself and read the
+ * tooltip there. Every unidentified row keeps its owner/bag/slot for exactly
+ * this reason - surface it rather than leaving someone staring at a hex
+ * fingerprint with nothing to act on.
+ */
+function locationSummary(locations) {
+  if (!locations?.length) return '';
+  return locations
+    .map((l) => `${l.owner}${l.bag ? ` / ${l.bag}` : ''}${l.slot !== null && l.slot !== undefined ? `, slot ${l.slot}` : ''}`)
+    .join(' · ')
+    .slice(0, 90);
 }
 
 /**
