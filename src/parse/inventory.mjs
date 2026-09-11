@@ -62,19 +62,23 @@ const NAME_STAT_SEPARATOR = '000201020002';
  * attributes trade-chat mentions to a price series - a wrong entry here only
  * mislabels a row in your own inventory, not someone else's price history.
  *
- * `data/community-item-catalog.json` extends this with weapon/armor base-skin
- * names - exactly the category GWCA's ItemIDs.h has no general coverage for
- * (only a handful of named green weapons). It's an optional, community-fed
- * catalog decoded from each item's plain (not mod-modified) encoded name, so
- * like `other_items` it never touches a rolled prefix/suffix/inscription and
+ * `data/community-item-catalog.json` extends this with everyday item names
+ * the built-in tables have no general coverage for: weapon/armor base skins
+ * (GWCA's ItemIDs.h only has a handful of named green weapons), trophies,
+ * salvage-kit rewards, dyes, keys, kits, minipets, quest items, and the
+ * individual upgrade components (hafts, grips, pommels, insignias) that carry
+ * no fingerprint of their own. It's an optional, community-fed catalog
+ * decoded from each item's plain (not mod-modified) encoded name, so like
+ * `other_items` it never touches a rolled prefix/suffix/inscription and
  * cannot poison price history, only mislabel a row in your own inventory. A
  * model id here that already has a name from `materials`/`other_items` above
  * keeps that name (loaded last, first-source-wins) - a raw model id is scoped
- * per item type in the underlying game data, not globally unique, so this
- * flattened lookup is necessarily approximate and existing built-in entries
- * always win. The file is entirely optional: absent is fine, and when present
- * it can be refreshed periodically by src/sources/community-catalog.mjs (see
- * COMMUNITY_CATALOG_URL in .env.example) without a code change or redeploy.
+ * per item type in the underlying game data, not globally unique, so an id
+ * ambiguous across types is dropped before it ever reaches this file (see
+ * src/sources/community-catalog.mjs) rather than guessed at here. The file is
+ * entirely optional: absent is fine, and when present it can be refreshed
+ * periodically (see COMMUNITY_CATALOG_URL in .env.example) without a code
+ * change or redeploy.
  */
 function buildModelIndex() {
   const raw = JSON.parse(readFileSync(`${ROOT}data/gwtoolbox-items.json`, 'utf8'));

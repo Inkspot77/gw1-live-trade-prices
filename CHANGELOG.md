@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-11
+
+### Added
+- The optional community item catalog now covers far more than weapon/armor
+  base skins: trophies, salvage-kit rewards, dyes, keys, kits, minipets,
+  quest items, and the individual upgrade components (hafts, grips, pommels,
+  insignias) that carry no fingerprint of their own. Real-world testing after
+  v1.3.1 showed the packaging fix was working, but the catalog itself only
+  ever drew from a fraction of what its upstream source actually documents —
+  restricting it to weapon/armor types left the bulk of a typical inventory
+  (trophies and materials, mostly) with no coverage at all. Regenerated from
+  the same upstream feed using the same flattening rules (cross-type-ambiguous
+  ids dropped, not guessed at; a small number of still-templated placeholder
+  names dropped too) now used by the weekly refresh, so the two can never
+  drift apart: 3,647 entries, up from 2,668.
+
 ## [1.3.1] - 2026-09-11
 
 ### Fixed

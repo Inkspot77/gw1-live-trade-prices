@@ -1,15 +1,15 @@
 /**
- * The optional weekly weapon/armor catalog refresh: fetch + flatten logic
- * only. `fetch` is stubbed per test rather than hitting a real network —
- * these tests are about the parsing/flattening rules, not about any
- * particular feed being up. Writing the result to disk and wiring it into
- * the poll loop is covered by hand in poller.mjs; nothing here touches disk.
+ * The optional weekly item-catalog refresh: fetch + flatten logic only.
+ * `fetch` is stubbed per test rather than hitting a real network — these
+ * tests are about the parsing/flattening rules, not about any particular
+ * feed being up. Writing the result to disk and wiring it into the poll loop
+ * is covered by hand in poller.mjs; nothing here touches disk.
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { fetchCommunityCatalog, SKIN_TYPES } from '../src/sources/community-catalog.mjs';
+import { fetchCommunityCatalog, CATALOG_TYPES } from '../src/sources/community-catalog.mjs';
 
 const realFetch = globalThis.fetch;
 
@@ -64,15 +64,36 @@ test('an entry with no name is dropped, not stored as undefined/null', async () 
   assert.equal(unnamed, 2);
 });
 
-test('buckets outside the recognised weapon/armor types are ignored entirely', async () => {
+test('buckets outside the recognised item types are ignored entirely', async () => {
   stubFetch({
     Sword: { 31170: { name: 'Ascalon Razor' } },
-    Potion: { 5: { name: 'Some Potion' } },
+    SomeFutureBucket: { 5: { name: 'Something new upstream' } },
   });
-  assert.equal(SKIN_TYPES.has('Potion'), false);
+  assert.equal(CATALOG_TYPES.has('SomeFutureBucket'), false);
   const { catalog, count } = await fetchCommunityCatalog('https://example.com');
   assert.deepEqual(catalog, { 31170: 'Ascalon Razor' });
   assert.equal(count, 1);
+});
+
+test('a still-templated placeholder name is dropped like an unnamed entry', async () => {
+  stubFetch({ Rune_Mod: { 905: { name: 'Axe Grip {0}' }, 893: { name: 'Axe Haft' } } });
+  const { catalog, unnamed } = await fetchCommunityCatalog('https://example.com');
+  assert.deepEqual(catalog, { 893: 'Axe Haft' });
+  assert.equal(unnamed, 1);
+});
+
+test('trophies, keys, dyes and upgrade components are covered, not just weapon/armor skins', async () => {
+  stubFetch({
+    Trophy: { 429: { name: 'Skale Fin' } },
+    Key: { 15557: { name: 'Istani Key' } },
+    Dye: { 146: { name: 'Vial of Dye' } },
+    Rune_Mod: { 906: { name: 'Bow Grip' } },
+  });
+  const { catalog, count } = await fetchCommunityCatalog('https://example.com');
+  assert.deepEqual(catalog, {
+    429: 'Skale Fin', 15557: 'Istani Key', 146: 'Vial of Dye', 906: 'Bow Grip',
+  });
+  assert.equal(count, 4);
 });
 
 test('an HTTP error status is reported with the status code, existing file left alone', async () => {

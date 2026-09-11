@@ -1,13 +1,18 @@
 /**
- * Optional weekly refresh for the extended weapon/armor model-id catalog.
+ * Optional weekly refresh for the extended item-name catalog.
  *
- * `data/community-item-catalog.json` fills a real gap: GWCA's `ItemIDs.h` (the
- * source behind `other_items` in gwtoolbox-items.json) has no general
- * weapon/armor coverage at all, just a handful of named green weapons. A
- * community-maintained catalog of base skin names, keyed by model id, closes
- * that gap - and because a project like that keeps growing as more players
- * contribute data, this refreshes the local copy periodically instead of
- * leaving it frozen at whatever it looked like on the day it was first added.
+ * `data/community-item-catalog.json` fills a real gap: the built-in tables
+ * (GWCA's `ItemIDs.h`, exposed as `other_items` in gwtoolbox-items.json, plus
+ * the runes/insignias/dyes fingerprint catalog) cover crafting materials and a
+ * handful of named green weapons, but nothing else - no general weapon/armor
+ * base skins, and nothing at all for trophies, salvage rewards, keys, kits,
+ * minipets, quest items, or the individual upgrade components (hafts, grips,
+ * pommels, insignias) that don't carry a distinct fingerprint of their own. A
+ * community-maintained catalog keyed by model id closes that gap across all
+ * of those categories at once - and because a project like that keeps growing
+ * as more players contribute data, this refreshes the local copy periodically
+ * instead of leaving it frozen at whatever it looked like on the day it was
+ * first added.
  *
  * Off by default, and entirely optional: nothing here runs unless
  * COMMUNITY_CATALOG_URL is set (see .env.example). Without it,
@@ -18,23 +23,40 @@
  *
  *   { "<ItemType>": { "<model_id>": { "name": "...", ... }, ... }, ... }
  *
- * This flattens the weapon/armor buckets down to the plain `model_id -> name`
+ * This flattens the recognised buckets down to the plain `model_id -> name`
  * map inventory.mjs's buildModelIndex() reads, dropping:
- *   - any bucket outside the weapon/armor types this project actually uses
- *     the catalog for (see SKIN_TYPES below)
- *   - a model id that appears under more than one type in the feed - kept
- *     ambiguous rather than guessed at, since a raw model id is scoped per
- *     item type in the underlying game data, not globally unique
- *   - an entry with no name
+ *   - any bucket outside the known, reviewed item types this project reads
+ *     from the catalog (see CATALOG_TYPES below) - a deliberate allowlist, so
+ *     a brand-new upstream category shows up as "ignored" rather than being
+ *     absorbed sight unseen
+ *   - a model id that appears under more than one type anywhere in the *whole*
+ *     feed (not just the recognised buckets) - kept ambiguous rather than
+ *     guessed at, since a raw model id is scoped per item type in the
+ *     underlying game data, not globally unique
+ *   - an entry with no name (including a still-templated placeholder name
+ *     such as "{0} Dagger Tang", which the feed uses for a handful of
+ *     upgrade components before their subtype is filled in)
  */
 
 const UA = { 'user-agent': 'gw1-price-dashboard (personal, low-rate, optional weekly refresh)' };
 const MAX_BYTES = 10 * 1024 * 1024;
 
-/** The item-type buckets treated as weapon/armor "skins". */
-export const SKIN_TYPES = new Set([
+/**
+ * The item-type buckets this project reads from the feed: weapon/armor base
+ * skins, plus every other everyday category the same community catalog
+ * happens to cover - trophies, salvage-kit rewards, dyes, keys, kits,
+ * scrolls, usable consumables, crafting materials/Zcoins, minipets, quest
+ * items, festival presents, costumes, and the individual upgrade components
+ * (hafts, grips, pommels, insignias, runes) that have no fingerprint of their
+ * own. Deliberately an explicit allowlist rather than "everything" - a
+ * category the feed adds later shows up as ignored, not silently absorbed.
+ */
+export const CATALOG_TYPES = new Set([
   'Axe', 'Bow', 'Daggers', 'Hammer', 'Offhand', 'Scythe', 'Shield', 'Spear',
   'Staff', 'Sword', 'Wand', 'Headpiece', 'Chestpiece', 'Gloves', 'Leggings', 'Boots',
+  'Trophy', 'Salvage', 'Dye', 'Key', 'Kit', 'Scroll', 'Usable', 'Materials_Zcoins',
+  'Minipet', 'Quest_Item', 'Present', 'Costume', 'Costume_Headpiece', 'Bag',
+  'CC_Shards', 'Storybook', 'Bundle', 'Gold_Coin', 'Rune_Mod',
 ]);
 
 /**
@@ -81,13 +103,15 @@ export async function fetchCommunityCatalog(url) {
   let ambiguous = 0;
   let unnamed = 0;
   for (const [type, entries] of Object.entries(body)) {
-    if (!SKIN_TYPES.has(type) || !entries || typeof entries !== 'object') continue;
+    if (!CATALOG_TYPES.has(type) || !entries || typeof entries !== 'object') continue;
     for (const [modelKey, entry] of Object.entries(entries)) {
       const modelId = Number(modelKey);
       if (!Number.isFinite(modelId)) continue;
       if ((typesByModel.get(modelId)?.size ?? 0) > 1) { ambiguous += 1; continue; }
       const name = typeof entry === 'string' ? entry : entry?.name;
-      if (!name || typeof name !== 'string') { unnamed += 1; continue; }
+      // A still-templated placeholder ("{0} Dagger Tang") is as good as no
+      // name - a small handful of upgrade components ship that way upstream.
+      if (!name || typeof name !== 'string' || name.includes('{')) { unnamed += 1; continue; }
       catalog[modelId] = name;
     }
   }
