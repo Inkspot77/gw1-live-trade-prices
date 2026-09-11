@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-11
+
+### Added
+- An "Inventory value over time" panel, with week/month/year views, charting
+  your total holdings value as it's recorded every 15 minutes. Clicking
+  anywhere on the line shows what actually drove the value at that point —
+  each mover explained as a price move, a change in how much you hold, or an
+  item gained/dropped entirely — and each one opens the same per-item detail
+  view as everywhere else in the app. Nothing is backfilled: a fresh install
+  (or upgrade) starts this chart empty and fills in from here, rather than
+  assuming today's holdings were also yesterday's. History older than 90 days
+  is automatically thinned to one snapshot per day so this doesn't grow
+  without bound on a long-running instance.
+- Investigated a report of "my inventory value swings wildly" alongside this:
+  it isn't a bug. `reference.value` for an NPC-traded material is that
+  material's *latest single* trader quote, not a smoothed one, and the NPC
+  trader's own rates for common bag materials (dust, ingots, and the like)
+  genuinely move by 50-300%+ day to day. Anyone holding those in bulk will
+  see the total swing by thousands of gold on nothing more than a trader-rate
+  spike. The new chart above is meant to make that visible and explainable
+  rather than mysterious.
+
+### Fixed
+- The "Portfolio" tile in the header strip always read "no inventory
+  imported", regardless of how much was actually imported. `state.inventory`
+  was declared but never assigned anywhere — the inventory fetch that feeds
+  the inventory panel and alerts was never also stored where the strip reads
+  it from. The strip now updates alongside the rest of the inventory data.
+- The sidebar (demand calendar, price-check threads, sources) now scrolls
+  independently of the main column, so a long inventory table no longer
+  forces scrolling all the way down the page to reach the bottom of the
+  sidebar.
+
 ## [1.7.0] - 2026-09-11
 
 ### Added

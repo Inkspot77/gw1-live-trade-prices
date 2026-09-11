@@ -19,7 +19,7 @@ import * as legacy from './sources/legacy.mjs';
 import * as wiki from './sources/wiki.mjs';
 import * as custom from './sources/custom.mjs';
 import * as communityCatalog from './sources/community-catalog.mjs';
-import { evaluateSellAlerts } from './valuation.mjs';
+import { evaluateSellAlerts, snapshotInventoryValue } from './valuation.mjs';
 import { resetModelIndex } from './parse/inventory.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
@@ -39,6 +39,11 @@ export const SCHEDULE = {
   // Matched to how fast the upstream feed actually grows (community-fed, not
   // a live market) rather than to anything time-sensitive.
   catalog: 7 * DAY,
+  // Fine enough to catch a trader-rate spike, coarse enough that a year of
+  // history stays a manageable size — see pruneInventorySnapshots for how
+  // that's kept true even at this cadence.
+  portfolio: 15 * MINUTE,
+  portfolioPrune: DAY,
 };
 
 export class Poller {
@@ -242,6 +247,24 @@ export class Poller {
     return `${count} entries (${ambiguous} ambiguous, ${unnamed} unnamed, dropped)`;
   }
 
+  /**
+   * Record the current total holdings value. Runs on its own schedule rather
+   * than riding the alert check: alerts only need to be recomputed when chat
+   * moves, but the point of this history is to also catch the swings that
+   * come purely from an NPC trader rate spike, so it needs to sample even
+   * when nothing traded.
+   */
+  snapshotPortfolio() {
+    const { total, count } = snapshotInventoryValue(this.store, this);
+    return `${Math.round(total)}g across ${count} priced item type${count === 1 ? '' : 's'}`;
+  }
+
+  /** Thin snapshots older than 90 days down to one per calendar day. */
+  prunePortfolioHistory() {
+    const removed = this.store.pruneInventorySnapshots(90 * DAY);
+    return `${removed} old snapshot${removed === 1 ? '' : 's'} thinned to daily`;
+  }
+
   async pollForum() {
     const threads = await legacy.fetchPriceCheckThreads(this.registry);
     this.store.saveThreads(threads);
@@ -309,6 +332,7 @@ export class Poller {
     // Needs chat data to exist first, and feeds the next parse round.
     await this.run('rates', () => this.refreshDerivedRates());
     await this.run('alerts', () => this.checkSellAlerts());
+    await this.run('portfolio', () => this.snapshotPortfolio());
     await this.run('wiki', () => this.pollWiki());
     await this.run('forum', () => this.pollForum());
     await this.run('custom', () => this.pollCustomSources());
@@ -332,6 +356,8 @@ export class Poller {
     every(SCHEDULE.sheet, 'sheet', () => this.pollSheet());
     every(SCHEDULE.forum, 'forum', () => this.pollForum());
     every(SCHEDULE.custom, 'custom', () => this.pollCustomSources());
+    every(SCHEDULE.portfolio, 'portfolio', () => this.snapshotPortfolio());
+    every(SCHEDULE.portfolioPrune, 'portfolioPrune', () => this.prunePortfolioHistory());
     if (this.catalogUrl) every(SCHEDULE.catalog, 'catalog', () => this.pollCatalog());
     this.log('[poll] schedules started');
   }

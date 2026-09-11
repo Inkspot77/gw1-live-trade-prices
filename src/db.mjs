@@ -124,6 +124,19 @@ CREATE TABLE IF NOT EXISTS context (
   value      TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+-- Total holdings value over time, recorded periodically so "why did my
+-- inventory swing" has a real answer instead of only ever showing the
+-- current instant. 'items' is a trimmed copy of that moment's priced rows
+-- (name/realm/quantity/unit/value/source) - enough to explain a later swing
+-- without trying to reconstruct history that was never recorded. Never
+-- backfilled: a fresh install starts this table empty rather than faking a
+-- past that assumes today's holdings were also yesterday's.
+CREATE TABLE IF NOT EXISTS inventory_snapshots (
+  ts     INTEGER PRIMARY KEY,
+  total  REAL NOT NULL,
+  items  TEXT NOT NULL
+);
 `;
 
 export function openDatabase(path) {
@@ -397,6 +410,56 @@ export class Store {
       SELECT name, fingerprint, model_id AS modelId, hint, realm, quantity, locations
       FROM inventory_items ORDER BY quantity DESC`).all()
       .map((r) => ({ ...r, locations: safeParse(r.locations, []) }));
+  }
+
+  /** Record one point in the inventory's value-over-time history. */
+  saveInventorySnapshot({ ts, total, items }) {
+    this.db.prepare(`
+      INSERT OR REPLACE INTO inventory_snapshots (ts, total, items) VALUES (?, ?, ?)
+    `).run(ts, total, JSON.stringify(items ?? []));
+  }
+
+  /** Just the totals, oldest first — all the value-over-time chart needs. */
+  inventorySnapshotTotals(sinceMs) {
+    return this.db.prepare(`
+      SELECT ts, total FROM inventory_snapshots WHERE ts >= ? ORDER BY ts ASC
+    `).all(sinceMs);
+  }
+
+  /** The recorded snapshot at exactly this timestamp, if one exists. */
+  inventorySnapshotAt(ts) {
+    const row = this.db.prepare(
+      'SELECT ts, total, items FROM inventory_snapshots WHERE ts = ?',
+    ).get(ts);
+    return row ? { ...row, items: safeParse(row.items, []) } : null;
+  }
+
+  /** The snapshot immediately before `ts` — the other half of "what changed". */
+  inventorySnapshotBefore(ts) {
+    const row = this.db.prepare(
+      'SELECT ts, total, items FROM inventory_snapshots WHERE ts < ? ORDER BY ts DESC LIMIT 1',
+    ).get(ts);
+    return row ? { ...row, items: safeParse(row.items, []) } : null;
+  }
+
+  /**
+   * Keep fine-grained snapshots for the recent window and thin anything older
+   * to one per calendar day, so a self-hosted instance doesn't accumulate this
+   * forever. Idempotent: a day already thinned to one row has nothing left to
+   * delete, so this is safe to call often.
+   */
+  pruneInventorySnapshots(olderThanMs) {
+    const cutoff = Date.now() - olderThanMs;
+    const keep = this.db.prepare(`
+      SELECT MIN(ts) AS ts FROM inventory_snapshots
+      WHERE ts < ? GROUP BY CAST(ts / 86400000 AS INTEGER)
+    `).all(cutoff).map((r) => r.ts);
+    if (!keep.length) return 0;
+    const placeholders = keep.map(() => '?').join(',');
+    const result = this.db.prepare(`
+      DELETE FROM inventory_snapshots WHERE ts < ? AND ts NOT IN (${placeholders})
+    `).run(cutoff, ...keep);
+    return result.changes;
   }
 
   /** Teach the importer that a fingerprint is a particular item. */

@@ -124,6 +124,24 @@
         <div id="inv-status" class="sub"></div>
       </details>
     </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Inventory value over time</h2>
+        <div class="range-toggle" role="group" aria-label="Range" id="portfolio-range">
+          <button type="button" data-window="week" aria-pressed="true">Week</button>
+          <button type="button" data-window="month" aria-pressed="false">Month</button>
+          <button type="button" data-window="year" aria-pressed="false">Year</button>
+        </div>
+        <p class="sub">
+          Recorded every 15 minutes from your own imports and the live market &mdash; not
+          backfilled, so a fresh install starts empty and fills in from here. Click anywhere on
+          the line to see what actually moved and why.
+        </p>
+      </div>
+      <div id="portfolio-chart"></div>
+      <div id="portfolio-changed"></div>
+    </div>
   </section>
 
   <aside>

@@ -20,7 +20,7 @@ import {
 } from './analytics.mjs';
 import {
   buildAnalysis, buildLookups, opportunityScore,
-  valueInventory, importInventory, evaluateSellAlerts,
+  valueInventory, importInventory, evaluateSellAlerts, compareSnapshots,
 } from './valuation.mjs';
 import { InventoryWatcher } from './watcher.mjs';
 import { createAuthGate } from './auth.mjs';
@@ -33,6 +33,9 @@ import { Backup } from './backup.mjs';
 // to pick up a new version, a crash caught within a couple of minutes) don't
 // need it: pollAll() already re-syncs everything else on every boot.
 const CATCH_UP_AFTER_MS = 2 * 60 * 60 * 1000;
+
+/** Named ranges for the inventory value-over-time chart. */
+const HISTORY_WINDOWS = { week: 7, month: 30, year: 365 };
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC_DIR = join(ROOT, 'public');
@@ -226,6 +229,23 @@ export async function startServer({
     '/api/threads': () => store.threadsFor(null),
 
     '/api/inventory': () => valueInventory(store, poller),
+
+    /** Total holdings value over time, for the "value over time" chart. */
+    '/api/inventory/history': (url) => {
+      const windowKey = url.searchParams.get('window');
+      const days = HISTORY_WINDOWS[windowKey] ?? HISTORY_WINDOWS.week;
+      return { window: windowKey in HISTORY_WINDOWS ? windowKey : 'week', points: store.inventorySnapshotTotals(Date.now() - days * DAY) };
+    },
+
+    /** What actually drove the value at one point on that chart. */
+    '/api/inventory/history/compare': (url) => {
+      const ts = Number(url.searchParams.get('ts'));
+      if (!Number.isFinite(ts)) return { error: 'ts is required' };
+      const after = store.inventorySnapshotAt(ts) ?? store.inventorySnapshotBefore(ts + 1);
+      if (!after) return { error: 'no snapshot recorded at that time' };
+      const before = store.inventorySnapshotBefore(after.ts);
+      return compareSnapshots(before, after);
+    },
 
     '/api/inventory/watch': () => watcher.status(),
 

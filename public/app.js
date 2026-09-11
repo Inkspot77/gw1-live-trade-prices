@@ -14,6 +14,7 @@ const state = {
   collapsed: {},
   startCollapsed: true,
   allCollapsed: true,
+  portfolioWindow: 'week',
 };
 
 /** Opportunities are grouped by item type; sheet categories are "Sheet / Sub". */
@@ -178,7 +179,7 @@ function downsample(points, targetBuckets = 180) {
     });
 }
 
-function historyChart(rawSeries, observations, { width = 640, height = 240 } = {}) {
+function historyChart(rawSeries, observations, { width = 640, height = 240, onClick = null } = {}) {
   const series = rawSeries.map((s) => ({ ...s, points: downsample(s.points) }));
   const points = [
     ...series.flatMap((s) => s.points),
@@ -291,6 +292,24 @@ function historyChart(rawSeries, observations, { width = 640, height = 240 } = {
     crosshair.setAttribute('opacity', 0);
     hideTooltip();
   });
+
+  if (onClick) {
+    capture.style.cursor = 'pointer';
+    capture.addEventListener('click', (event) => {
+      const box = svg.getBoundingClientRect();
+      const px = ((event.clientX - box.left) / box.width) * width;
+      const ts = t0 + ((px - pad.left) / (width - pad.left - pad.right)) * (t1 - t0);
+      // Snap to the nearest point actually recorded, not the interpolated
+      // pixel position, so the click always resolves to a real snapshot.
+      let nearest = null;
+      for (const s of series) {
+        for (const p of s.points) {
+          if (!nearest || Math.abs(p.ts - ts) < Math.abs(nearest.ts - ts)) nearest = p;
+        }
+      }
+      if (nearest) onClick(nearest);
+    });
+  }
 
   return svg;
 }
@@ -816,6 +835,87 @@ function renderInventory(data) {
   mount(body, table, unpriced);
 }
 
+/* ---------------------------------------------------------- portfolio history */
+
+/**
+ * Total holdings value over time. Recorded server-side every 15 minutes
+ * (see snapshotPortfolio in poller.mjs) - never backfilled, so a fresh
+ * install starts this chart empty rather than faking a past that assumes
+ * today's holdings were also yesterday's.
+ */
+async function refreshPortfolioHistory() {
+  const data = await fetchJson(`/api/inventory/history?window=${state.portfolioWindow}`);
+  renderPortfolioHistory(Array.isArray(data.points) ? data.points : []);
+}
+
+function renderPortfolioHistory(points) {
+  const box = $('#portfolio-chart');
+  mount($('#portfolio-changed'));
+  if (points.length < 2) {
+    mount(box, el('div', {
+      class: 'empty',
+      text: 'Not enough history yet — recorded every 15 minutes starting now. Check back in a '
+        + 'day or two for a real trend.',
+    }));
+    return;
+  }
+  const series = [{
+    label: 'Inventory value',
+    colour: 'var(--series-bid)',
+    points: points.map((p) => ({ ts: p.ts, gold: p.total })),
+  }];
+  mount(box, historyChart(series, [], { onClick: (point) => loadPortfolioChange(point.ts) }));
+}
+
+/** What actually drove the value at the point just clicked on the chart. */
+async function loadPortfolioChange(ts) {
+  const box = $('#portfolio-changed');
+  mount(box, el('div', { class: 'empty', text: 'Loading…' }));
+
+  const data = await fetchJson(`/api/inventory/history/compare?ts=${Math.round(ts)}`);
+  if (data.error) {
+    mount(box, el('div', { class: 'empty', text: data.error }));
+    return;
+  }
+  if (!data.beforeTs) {
+    mount(box, el('div', { class: 'empty', text: 'This is the earliest recorded snapshot — nothing to compare it against yet.' }));
+    return;
+  }
+
+  const delta = data.totalDelta;
+  mount(
+    box,
+    el('div', { class: 'sub', style: 'margin:12px 0 8px;font-size:13px' }, [
+      el('strong', {
+        class: delta >= 0 ? 'delta-up' : 'delta-down',
+        text: `${delta >= 0 ? '+' : ''}${formatGold(delta)}`,
+      }),
+      el('span', { text: ` between ${relativeTime(data.beforeTs)} and ${relativeTime(data.afterTs)}` }),
+    ]),
+    data.movers.length
+      ? el('div', { class: 'mover-list' }, data.movers.map((m) => moverRow(m)))
+      : el('div', { class: 'empty', text: 'Nothing measurably changed between these two points.' }),
+  );
+}
+
+/** One line item in the "what changed" breakdown - clicking it opens the same
+ *  per-item detail view as everywhere else in the app. */
+function moverRow(m) {
+  const row = el('div', { class: 'mover-row', role: 'button', tabindex: '0' }, [
+    el('div', {}, [
+      el('div', { class: 'item-name', text: m.item }),
+      el('div', { class: 'item-meta muted', text: m.reason }),
+    ]),
+    el('div', { class: m.delta >= 0 ? 'delta-up mono' : 'delta-down mono', text: `${m.delta >= 0 ? '+' : ''}${formatGold(m.delta)}` }),
+  ]);
+  const open = () => openDetail({ item: m.item, realm: m.realm, category: null });
+  row.addEventListener('click', open);
+  row.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+  });
+  return row;
+}
+
 /**
  * Where to physically go look at an item you can't otherwise identify. An
  * item's encoded name can't be decoded offline - no string table exists
@@ -871,6 +971,7 @@ function nameItControl(fingerprint, modelId) {
 async function refreshInventory() {
   await refreshAlerts();
   await refreshWatchStatus();
+  await refreshPortfolioHistory();
 }
 
 async function importInventory(body, mode) {
@@ -984,8 +1085,12 @@ async function refreshAlerts() {
     fetchJson('/api/alerts'),
     fetchJson('/api/inventory'),
   ]);
+  // The strip's Portfolio tile reads this - without it, it never learns your
+  // inventory has anything in it, no matter how much you've imported.
+  state.inventory = inventory;
   renderInventory(inventory);
   renderAlerts(alerts, inventory);
+  renderStrip();
 }
 
 
@@ -1150,6 +1255,16 @@ function wire() {
     state.query = e.target.value;
     renderOverview();
   });
+
+  for (const button of document.querySelectorAll('#portfolio-range button')) {
+    button.addEventListener('click', () => {
+      state.portfolioWindow = button.dataset.window;
+      for (const b of document.querySelectorAll('#portfolio-range button')) {
+        b.setAttribute('aria-pressed', String(b === button));
+      }
+      refreshPortfolioHistory();
+    });
+  }
 
   $('#refresh').addEventListener('click', refresh);
 

@@ -155,6 +155,90 @@ export function valueInventory(store, poller, now = Date.now()) {
   };
 }
 
+/**
+ * Record the current total holdings value, so the dashboard can chart how it
+ * moves over time instead of only ever showing the current instant.
+ *
+ * Stores just the priced rows, trimmed to what a later comparison actually
+ * needs (name/realm/quantity/unit/value/source) — everything else in
+ * `valueInventory`'s output is re-derivable live and would only bloat a table
+ * meant to be kept indefinitely.
+ */
+export function snapshotInventoryValue(store, poller, now = Date.now()) {
+  const { total, priced } = valueInventory(store, poller, now);
+  const items = priced.map((r) => ({
+    name: r.name,
+    realm: r.realm,
+    quantity: r.quantity,
+    unit: r.unit,
+    value: r.value,
+    source: r.reference.source,
+  }));
+  store.saveInventorySnapshot({ ts: now, total, items });
+  return { total, count: items.length };
+}
+
+/**
+ * Explain the difference between two recorded snapshots: which items moved,
+ * how much, and whether that was a price move, a change in how much you hold,
+ * or the item being gained or dropped entirely.
+ *
+ * `before` may be null (the `after` snapshot is the oldest one recorded) — the
+ * caller is expected to treat that as "nothing to compare yet" rather than a
+ * swing from zero.
+ */
+export function compareSnapshots(before, after, { limit = 10 } = {}) {
+  const rows = new Map();
+  for (const r of before?.items ?? []) rows.set(`${r.realm}|${r.name}`, { before: r, after: null });
+  for (const r of after?.items ?? []) {
+    const key = `${r.realm}|${r.name}`;
+    const entry = rows.get(key) ?? { before: null, after: null };
+    entry.after = r;
+    rows.set(key, entry);
+  }
+
+  const movers = [...rows.values()].map(({ before: b, after: a }) => {
+    const delta = (a?.value ?? 0) - (b?.value ?? 0);
+    const label = a ?? b;
+    let reason;
+    if (!b) {
+      reason = `Newly held: ${a.quantity} × ${formatWhole(a.unit)}g`;
+    } else if (!a) {
+      reason = `No longer held (was ${b.quantity} × ${formatWhole(b.unit)}g)`;
+    } else if (b.quantity !== a.quantity && b.unit !== a.unit) {
+      reason = `Holdings ${b.quantity} → ${a.quantity}, and ${a.source} price ${formatWhole(b.unit)}g → ${formatWhole(a.unit)}g`;
+    } else if (b.quantity !== a.quantity) {
+      reason = `Holdings changed: ${b.quantity} → ${a.quantity}`;
+    } else {
+      const pct = b.unit ? ((a.unit - b.unit) / b.unit) * 100 : 0;
+      reason = `${a.source} price moved ${formatWhole(b.unit)}g → ${formatWhole(a.unit)}g (${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%)`;
+    }
+    return {
+      item: label.name,
+      realm: label.realm,
+      delta,
+      before: b ? { quantity: b.quantity, unit: b.unit, value: b.value } : null,
+      after: a ? { quantity: a.quantity, unit: a.unit, value: a.value } : null,
+      reason,
+    };
+  }).filter((m) => Math.abs(m.delta) > 0.5);
+
+  movers.sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
+
+  return {
+    beforeTs: before?.ts ?? null,
+    afterTs: after?.ts ?? null,
+    beforeTotal: before?.total ?? 0,
+    afterTotal: after?.total ?? 0,
+    totalDelta: (after?.total ?? 0) - (before?.total ?? 0),
+    movers: movers.slice(0, limit),
+  };
+}
+
+function formatWhole(gold) {
+  return Math.round(gold ?? 0).toLocaleString('en-US');
+}
+
 /** Shared by the file-import and paste paths. */
 export function importInventory(store, poller, parsed, source) {
   const learned = store.learnedFingerprints();
