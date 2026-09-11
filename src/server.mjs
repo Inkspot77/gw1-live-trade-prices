@@ -164,6 +164,7 @@ export async function startServer({
   authPass = null,
   backupDir = null,
   backupIntervalMinutes = 60,
+  catalogUrl = null,
 } = {}) {
   // Half-configured auth (only a user, or only a password) is worse than
   // none: it looks protected but the gate below would never actually block
@@ -174,7 +175,7 @@ export async function startServer({
   const auth = createAuthGate(authUser && authPass ? { user: authUser, pass: authPass } : null);
 
   const store = openDatabase(dbPath);
-  const poller = new Poller(store);
+  const poller = new Poller(store, { catalogUrl });
   const watcher = new InventoryWatcher(store, poller);
   // Opt-in, like --watch and auth: only runs at all once a directory is given.
   const backup = backupDir ? new Backup(store, dbPath, backupDir) : null;

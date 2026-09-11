@@ -21,6 +21,10 @@ data/prices.db-wal
 # clients, never commit it; regenerate by pulling from the server volume)
 gw1-ca-root.crt
 
+# Local environment overrides — copy .env.example instead of committing this.
+# May hold secrets (an auth password) and, if set, COMMUNITY_CATALOG_URL.
+.env
+
 # OS / editor junk
 .DS_Store
 *.swp

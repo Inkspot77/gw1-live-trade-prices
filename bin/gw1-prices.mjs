@@ -19,6 +19,7 @@ const { values } = parseArgs({
     'auth-pass': { type: 'string' },
     'backup-dir': { type: 'string' },
     'backup-interval': { type: 'string' },
+    'catalog-url': { type: 'string' },
     help: { type: 'boolean', short: 'h', default: false },
   },
 });
@@ -42,6 +43,8 @@ the environment first, using Node's own built-in support — no dependency.
   --backup-dir <d> write periodic database backups here   [env BACKUP_DIR]  (off by default)
   --backup-interval <n> minutes between backups            [env BACKUP_INTERVAL_MINUTES] (default 60)
                    (only takes effect once --backup-dir is set)
+  --catalog-url <u> weekly refresh source for the extended [env COMMUNITY_CATALOG_URL]
+                   weapon/armor model-id catalog             (off by default)
 `);
   process.exit(0);
 }
@@ -72,6 +75,7 @@ try {
     backupIntervalMinutes: Number(
       values['backup-interval'] ?? process.env.BACKUP_INTERVAL_MINUTES ?? 60,
     ),
+    catalogUrl: values['catalog-url'] ?? process.env.COMMUNITY_CATALOG_URL ?? null,
   });
 
   // Recorded so the next boot can tell a clean stop from a crash or a power

@@ -156,6 +156,13 @@ Every item you own that isn't automatically recognized is still shown, with a
 box to name it — nothing you own silently disappears from your total just
 because the dashboard didn't recognize it at first glance.
 
+Items are matched by their internal model id wherever possible — the visual
+skin, which never changes even when an item rolls different stats — falling
+back to a name you've taught it. A built-in table already covers materials,
+dyes, and common consumables; an optional, weekly-refreshing catalog can
+extend that to weapon and armor skins too (`COMMUNITY_CATALOG_URL` in
+`.env.example` — off, and harmless to leave off, by default).
+
 ## Sell alerts: "you should probably sell this right now"
 
 Once your inventory is loaded in, the dashboard keeps an eye on it and raises

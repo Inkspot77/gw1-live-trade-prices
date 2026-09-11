@@ -8,6 +8,8 @@
  * error is recorded so the dashboard can show what is stale.
  */
 
+import { writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createRegistry, REALMS } from './parse/items.mjs';
 import { parseTradeMessage } from './parse/trade.mjs';
 import { DEFAULT_RATES } from './parse/currency.mjs';
@@ -16,10 +18,16 @@ import * as presearing from './sources/presearing.mjs';
 import * as legacy from './sources/legacy.mjs';
 import * as wiki from './sources/wiki.mjs';
 import * as custom from './sources/custom.mjs';
+import * as communityCatalog from './sources/community-catalog.mjs';
 import { evaluateSellAlerts } from './valuation.mjs';
+import { resetModelIndex } from './parse/inventory.mjs';
+
+const ROOT = fileURLToPath(new URL('../', import.meta.url));
+const CATALOG_PATH = `${ROOT}data/community-item-catalog.json`;
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 
 export const SCHEDULE = {
   chat: 2 * MINUTE,
@@ -28,12 +36,16 @@ export const SCHEDULE = {
   sheet: 12 * HOUR,
   forum: 30 * MINUTE,
   custom: 30 * MINUTE,
+  // Matched to how fast the upstream feed actually grows (community-fed, not
+  // a live market) rather than to anything time-sensitive.
+  catalog: 7 * DAY,
 };
 
 export class Poller {
-  constructor(store, { log = console.log } = {}) {
+  constructor(store, { log = console.log, catalogUrl = null } = {}) {
     this.store = store;
     this.log = log;
+    this.catalogUrl = catalogUrl;
     this.registry = createRegistry();
     this.rates = { ...DEFAULT_RATES, ...(store.getContext('rates') ?? {}) };
     this.status = store.getContext('sourceStatus') ?? {};
@@ -211,6 +223,25 @@ export class Poller {
     return `daily ok (Sandford: ${sandford?.item ?? '?'}, Traveler: ${traveler?.item ?? '?'})`;
   }
 
+  /**
+   * Optional, off by default: refresh data/community-item-catalog.json from
+   * whatever URL COMMUNITY_CATALOG_URL points at (see .env.example). Skipped
+   * entirely, not just quietly failing, when nothing is configured - same
+   * "opt-in" treatment as --watch/--backup-dir.
+   */
+  async pollCatalog() {
+    if (!this.catalogUrl) return 'not configured (COMMUNITY_CATALOG_URL unset)';
+    const {
+      catalog, count, ambiguous, unnamed,
+    } = await communityCatalog.fetchCommunityCatalog(this.catalogUrl);
+    writeFileSync(CATALOG_PATH, JSON.stringify(catalog), 'utf8');
+    // The running process may already have model-indexed inventory rows
+    // cached from before this refresh - drop that cache so the next lookup
+    // picks up what was just written instead of waiting for a restart.
+    resetModelIndex();
+    return `${count} entries (${ambiguous} ambiguous, ${unnamed} unnamed, dropped)`;
+  }
+
   async pollForum() {
     const threads = await legacy.fetchPriceCheckThreads(this.registry);
     this.store.saveThreads(threads);
@@ -281,6 +312,7 @@ export class Poller {
     await this.run('wiki', () => this.pollWiki());
     await this.run('forum', () => this.pollForum());
     await this.run('custom', () => this.pollCustomSources());
+    if (this.catalogUrl) await this.run('catalog', () => this.pollCatalog());
     this.store.checkpoint();
   }
 
@@ -300,6 +332,7 @@ export class Poller {
     every(SCHEDULE.sheet, 'sheet', () => this.pollSheet());
     every(SCHEDULE.forum, 'forum', () => this.pollForum());
     every(SCHEDULE.custom, 'custom', () => this.pollCustomSources());
+    if (this.catalogUrl) every(SCHEDULE.catalog, 'catalog', () => this.pollCatalog());
     this.log('[poll] schedules started');
   }
 

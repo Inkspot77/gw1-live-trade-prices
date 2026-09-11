@@ -61,6 +61,20 @@ const NAME_STAT_SEPARATOR = '000201020002';
  * items.mjs#loadGwToolbox(), so it cannot feed the alias matcher that
  * attributes trade-chat mentions to a price series - a wrong entry here only
  * mislabels a row in your own inventory, not someone else's price history.
+ *
+ * `data/community-item-catalog.json` extends this with weapon/armor base-skin
+ * names - exactly the category GWCA's ItemIDs.h has no general coverage for
+ * (only a handful of named green weapons). It's an optional, community-fed
+ * catalog decoded from each item's plain (not mod-modified) encoded name, so
+ * like `other_items` it never touches a rolled prefix/suffix/inscription and
+ * cannot poison price history, only mislabel a row in your own inventory. A
+ * model id here that already has a name from `materials`/`other_items` above
+ * keeps that name (loaded last, first-source-wins) - a raw model id is scoped
+ * per item type in the underlying game data, not globally unique, so this
+ * flattened lookup is necessarily approximate and existing built-in entries
+ * always win. The file is entirely optional: absent is fine, and when present
+ * it can be refreshed periodically by src/sources/community-catalog.mjs (see
+ * COMMUNITY_CATALOG_URL in .env.example) without a code change or redeploy.
  */
 function buildModelIndex() {
   const raw = JSON.parse(readFileSync(`${ROOT}data/gwtoolbox-items.json`, 'utf8'));
@@ -74,6 +88,16 @@ function buildModelIndex() {
     const modelId = Number(key);
     if (Number.isFinite(modelId) && !byModel.has(modelId)) byModel.set(modelId, name);
   }
+  let community = {};
+  try {
+    community = JSON.parse(readFileSync(`${ROOT}data/community-item-catalog.json`, 'utf8'));
+  } catch {
+    // Optional source - absent is fine (e.g. before it's ever been fetched).
+  }
+  for (const [key, name] of Object.entries(community)) {
+    const modelId = Number(key);
+    if (Number.isFinite(modelId) && !byModel.has(modelId)) byModel.set(modelId, name);
+  }
   return byModel;
 }
 
@@ -81,6 +105,16 @@ let MODEL_INDEX = null;
 export function modelIndex() {
   MODEL_INDEX ??= buildModelIndex();
   return MODEL_INDEX;
+}
+
+/**
+ * Drop the cached model index so the next modelIndex() call rebuilds it from
+ * disk. Needed after community-catalog.mjs writes a fresh
+ * data/community-item-catalog.json - without this, a running process would
+ * keep using whatever it had cached at startup until restarted.
+ */
+export function resetModelIndex() {
+  MODEL_INDEX = null;
 }
 
 /**

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The inventory folder watcher could silently miss a genuine change: it
+  gated on the file's mtime and size before ever reading it, and either can
+  coincide between two rapid rewrites (a same-length quantity change leaves
+  `size` identical, and two writes landing within one filesystem-clock tick
+  can leave `mtimeMs` identical too — seen in practice on WSL2). It now reads
+  and content-hashes the file on every check and trusts only that, the same
+  hash comparison already used to skip a byte-identical rewrite.
+
+### Added
+- An optional, weekly-refreshing weapon/armor model-id catalog
+  (`data/community-item-catalog.json`, refreshed via `COMMUNITY_CATALOG_URL` /
+  `--catalog-url`) extends the built-in model-id table to cover the one
+  category GWCA's `ItemIDs.h` has no general coverage for: weapon and armor
+  base skin names. Off by default, additive only — it can only add coverage
+  the built-in tables lack, never override an existing entry, and a missing
+  or unreachable feed just leaves the catalog at whatever it was last.
+
 ## [1.2.2] - 2026-09-10
 
 ### Fixed

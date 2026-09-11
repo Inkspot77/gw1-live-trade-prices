@@ -46,8 +46,6 @@ export class InventoryWatcher {
     this.debounce = null;
     this.busy = false;
 
-    /** Last file signature we successfully imported, so a touch is not a change. */
-    this.signature = null;
     this.lastError = null;
     this.lastImport = null;
     this.lastChecked = null;
@@ -77,7 +75,7 @@ export class InventoryWatcher {
   async configure({ path, enabled = true }) {
     const cleaned = typeof path === 'string' && path.trim() ? path.trim() : null;
     this.store.setContext('inventoryWatch', { path: cleaned, enabled: Boolean(cleaned && enabled) });
-    this.signature = null;
+    this.contentHash = null;
     this.lastError = null;
     this.stop();
     if (cleaned && enabled) {
@@ -147,6 +145,17 @@ export class InventoryWatcher {
 
   /**
    * Import if the file has genuinely changed.
+   *
+   * Content hash is the *only* signal trusted for "did anything actually
+   * change" — mtime/size looked like a cheap way to skip a redundant read,
+   * but is not reliable enough to gate on: a same-length rewrite (a quantity
+   * changing from one 3-digit number to another, say) can leave `size`
+   * identical, and two rewrites landing within one filesystem-clock tick can
+   * leave `mtimeMs` identical too (seen in practice on WSL2, whose clock
+   * resolution can be coarser than native Linux) — either way a real change
+   * would then look exactly like no change at all and silently never import.
+   * Reading and hashing a personal inventory export on every poll tick is
+   * cheap enough that there is no real cost to just always doing it.
    * @param {{force?: boolean}} opts
    */
   async checkNow({ force = false } = {}) {
@@ -156,31 +165,23 @@ export class InventoryWatcher {
     this.busy = true;
     try {
       const file = await this.resolveFile();
-      const info = await stat(file);
-      const stamp = `${file}:${info.mtimeMs}:${info.size}`;
       this.lastChecked = Date.now();
 
-      if (!force && stamp === this.signature) {
-        this.lastError = null;
-        return null;
-      }
-
       const text = await this.readStable(file);
-      const parsed = parseToolboxInventory(text);
 
-      // A synced file can be rewritten byte-identically; hashing avoids an
-      // import (and an alert re-evaluation) that would change nothing.
+      // A synced file (or, here, coincidence) can rewrite byte-identically;
+      // hashing avoids an import (and an alert re-evaluation) that would
+      // change nothing.
       const hash = createHash('sha1').update(text).digest('hex');
       if (!force && hash === this.contentHash) {
-        this.signature = stamp;
         this.lastError = null;
         return null;
       }
 
+      const parsed = parseToolboxInventory(text);
       const rows = importInventory(this.store, this.poller, parsed, 'watched folder');
       const alerts = evaluateSellAlerts(this.store, this.poller);
 
-      this.signature = stamp;
       this.contentHash = hash;
       this.lastError = null;
       this.lastImport = {
