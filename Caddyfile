@@ -12,7 +12,9 @@
 #
 # Trust the CA on each client so browsers stop warning:
 #   1. Get the CA root:
-#        docker exec gw1-prices-caddy-1 cat /data/caddy/pki/authorities/local/root.crt
+#        docker exec <project>-caddy-1 cat /data/caddy/pki/authorities/local/root.crt
+#      (<project> is your folder name with the ectowatch service appended —
+#      run `docker compose ps` if you're not sure of the exact container name.)
 #   2. Install it in the device's trust store (see deploy/DEPLOY.md).
 #
 # Change the password:
@@ -23,5 +25,5 @@ https://utility:8787, https://utility.example.ts.net:8787 {
 	basic_auth {
 		alan <bcrypt-hash-generate-your-own>
 	}
-	reverse_proxy gw1-prices:8787
+	reverse_proxy ectowatch:8787
 }

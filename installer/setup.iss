@@ -1,4 +1,4 @@
-#define MyAppName "GW1 Live Trade Prices"
+#define MyAppName "EctoWatch"
 ; Overridable from the command line with /DMyAppVersion=X.Y.Z — the CI
 ; release job passes the pushed git tag so the installer's version and
 ; filename actually match what was tagged, instead of always saying 1.0.0.
@@ -6,9 +6,13 @@
   #define MyAppVersion "1.0.0"
 #endif
 #define MyAppPublisher "Inkspot77"
-#define MyAppURL "https://github.com/Inkspot77/gw1-live-trade-prices"
+#define MyAppURL "https://github.com/Inkspot77/ectowatch"
 
 [Setup]
+; AppId must NEVER change across a rename/version bump — Windows uses this
+; GUID, not MyAppName, to recognise "same app" for upgrade/uninstall. Keeping
+; it stable means a GW1 Live Trade Prices install upgrades cleanly in place
+; to EctoWatch instead of installing side-by-side as a second app.
 AppId={{55116AE9-D5F4-4CB9-AAF7-6D0498190C90}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -16,12 +20,12 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 ; {localappdata} + lowest privileges: no admin prompt, since the app writes
 ; its own data continuously and nothing it does needs elevation.
-DefaultDirName={localappdata}\GW1TradePrices
+DefaultDirName={localappdata}\EctoWatch
 DefaultGroupName={#MyAppName}
 PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
 OutputDir=Output
-OutputBaseFilename=GW1TradePrices-Setup-{#MyAppVersion}
+OutputBaseFilename=EctoWatch-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

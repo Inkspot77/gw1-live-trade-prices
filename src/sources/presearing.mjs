@@ -17,7 +17,7 @@ import { REALMS } from '../parse/items.mjs';
 const SHEET_ID = '1u8-n_EJe9Nfl1twUHExLeuuYNT0Szo_7ss4HmmNytqk';
 const WORKSHEETS = ['Runes', 'Insignias', 'Consumables', 'Inscriptions', 'Minipets', 'Weapon Mods'];
 
-const UA = { 'user-agent': 'gw1-price-dashboard (personal, low-rate)' };
+const UA = { 'user-agent': 'ectowatch (personal, low-rate)' };
 
 /** Minimal RFC-4180 CSV reader; the sheet quotes every field. */
 export function parseCsv(text) {

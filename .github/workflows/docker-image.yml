@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build the Docker image
-        run: docker build . --file Dockerfile --tag gw1-live-trade-prices:ci
+        run: docker build . --file Dockerfile --tag ectowatch:ci
 
   windows-installer:
     runs-on: windows-latest
@@ -86,8 +86,8 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GW1TradePrices-Setup
-          path: installer\Output\GW1TradePrices-Setup-*.exe
+          name: EctoWatch-Setup
+          path: installer\Output\EctoWatch-Setup-*.exe
 
   # Only fires on a pushed tag like v1.2.3 — a plain push to main builds and
   # tests the installer (above) but never publishes anything.
@@ -102,7 +102,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: GW1TradePrices-Setup
+          name: EctoWatch-Setup
           path: installer-output
 
       - name: Publish GitHub Release
@@ -110,5 +110,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "$GITHUB_REF_NAME" installer-output/*.exe \
-            --title "GW1 Live Trade Prices $GITHUB_REF_NAME" \
+            --title "EctoWatch $GITHUB_REF_NAME" \
             --generate-notes

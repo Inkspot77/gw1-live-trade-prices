@@ -12,7 +12,7 @@
 
 import { timingSafeEqual, createHash } from 'node:crypto';
 
-const REALM = 'GW1 Live Trade Prices';
+const REALM = 'EctoWatch';
 
 /**
  * Hashing first means the timing-safe compare always runs on fixed-length

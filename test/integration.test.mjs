@@ -111,7 +111,7 @@ test('the dashboard\'s own HTML is served at /', async () => {
     const response = await fetch(`${baseUrl}/`);
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type') ?? '', /text\/html/);
-    assert.match(await response.text(), /GW1 Live Trade Prices/);
+    assert.match(await response.text(), /EctoWatch/);
   } finally {
     await close();
   }

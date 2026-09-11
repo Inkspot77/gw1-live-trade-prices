@@ -1,4 +1,4 @@
-# Setting Up GW1 Live Trade Prices
+# Setting Up EctoWatch
 
 This guide has no assumed background — it explains every term the first time
 it comes up. There are two ways to run the dashboard; pick whichever fits:
@@ -61,8 +61,8 @@ If that prints a version number instead of an error, you're set.
 If you have `git` and access to the GitHub repository:
 
 ```bash
-git clone https://github.com/Inkspot77/gw1-live-trade-prices.git gw1-prices
-cd gw1-prices
+git clone https://github.com/Inkspot77/ectowatch.git ectowatch
+cd ectowatch
 ```
 
 (The repository is private, so `git` will ask you to log in — use a
@@ -95,7 +95,7 @@ docker compose ps
 ```
 
 You want to see two entries, both `Up` (or `healthy`) — one named
-`gw1-prices`, one named `caddy`.
+`ectowatch`, one named `caddy`.
 
 ### Step 4 — Set a real password
 
@@ -157,8 +157,10 @@ your browser will warn you the first time. Two ways to handle it:
   certificate off the server:
 
   ```bash
-  docker exec gw1-prices-caddy-1 cat /data/caddy/pki/authorities/local/root.crt
+  docker exec ectowatch-caddy-1 cat /data/caddy/pki/authorities/local/root.crt
   ```
+  (Cloned into a folder other than `ectowatch`? The container name is your
+  folder name plus `-caddy-1` — run `docker compose ps` if you're not sure.)
 
   Save that output as a `.crt` file and add it to your device's trusted
   certificates:
@@ -197,7 +199,7 @@ server, then repeat Step 6's certificate step and browse to that name instead.
 ### Updating later
 
 ```bash
-cd gw1-prices
+cd ectowatch
 git pull                                       # or download+unzip a fresh copy
 docker compose --profile lan up -d --build
 ```
@@ -227,7 +229,7 @@ identical on two computers, automatically, in the background:
    %USERPROFILE%\Documents\GWToolboxpp\<YOUR-COMPUTER-NAME>\configs\default\inventories
    ```
 3. On the server, accept the shared folder Syncthing offers you, pick a
-   destination folder (e.g. `/srv/gw1-sync/inventories`), and set its type to
+   destination folder (e.g. `/srv/ectowatch-sync/inventories`), and set its type to
    **"Receive Only"**.
 4. Point the dashboard at that folder — either edit the `WATCH_DIR` line in
    `docker-compose.yml` (uncomment the two lines near it and set the path to
@@ -250,11 +252,11 @@ dashboard can read your inventory export straight from disk.
 
 ### Step 1 — Download and run the installer
 
-Grab the latest `GW1TradePrices-Setup-*.exe` from the
-[Releases page](https://github.com/Inkspot77/gw1-live-trade-prices/releases)
+Grab the latest `EctoWatch-Setup-*.exe` from the
+[Releases page](https://github.com/Inkspot77/ectowatch/releases)
 and run it. (If no release exists yet, you can also get a build from the
 **windows-installer** job of any green run on the
-[Actions page](https://github.com/Inkspot77/gw1-live-trade-prices/actions)
+[Actions page](https://github.com/Inkspot77/ectowatch/actions)
 — open a recent "CI" run and scroll to **Artifacts** — though that one's
 version number just reflects the commit it was built from, not a tagged
 release.)
@@ -269,7 +271,7 @@ anyway**. See Troubleshooting below.
 
 ### Optional — start automatically with Windows
 
-The installer offers a checkbox: **Start GW1 Live Trade Prices when
+The installer offers a checkbox: **Start EctoWatch when
 Windows starts**. Worth turning on — the longer this runs unattended, the
 more price history it builds up, and sell alerts only fire while it's
 actually running. You can flip this on or off later too, from Windows'
@@ -278,8 +280,8 @@ own **Settings → Apps → Startup**.
 ### Step 2 — Start it
 
 The installer finishes by launching the dashboard for you and opens
-`http://127.0.0.1:8787` in your browser. From then on, use the **GW1 Live
-Trade Prices** shortcut it put on your desktop (and in the Start menu) to
+`http://127.0.0.1:8787` in your browser. From then on, use the **EctoWatch**
+shortcut it put on your desktop (and in the Start menu) to
 start it again — no PowerShell, no `npm start`.
 
 ### Step 3 — Point it at your inventory
@@ -300,7 +302,7 @@ automatically every time it starts.
 
 ### Starting it again later
 
-Use the **GW1 Live Trade Prices** desktop or Start menu shortcut again — or,
+Use the **EctoWatch** desktop or Start menu shortcut again — or,
 if you turned on the startup checkbox above, it's already running by the
 time you log in.
 
@@ -308,7 +310,9 @@ time you log in.
 
 Uninstalling does **not** delete your accumulated price history.
 `data\prices.db` stays behind at
-`%LOCALAPPDATA%\GW1TradePrices\data\prices.db` — delete that folder
+`%LOCALAPPDATA%\EctoWatch\data\prices.db` (or, if you upgraded from an
+install made before the EctoWatch rename, `%LOCALAPPDATA%\GW1TradePrices\data\prices.db`
+— an upgrade keeps using its original folder) — delete that folder
 yourself if you want it gone for good, or keep it and reinstall later to
 pick up right where you left off.
 
@@ -346,15 +350,21 @@ nothing is mid-write), then:
 - **Server (Docker):**
 
   ```bash
-  docker run --rm -v gw1-prices_gw1-data:/data -v "$PWD:/backup" alpine \
-    tar czf "/backup/gw1-backup-$(date +%F).tar.gz" -C /data .
+  docker run --rm -v ectowatch_gw1-data:/data -v "$PWD:/backup" alpine \
+    tar czf "/backup/ectowatch-backup-$(date +%F).tar.gz" -C /data .
   ```
+
+  (The volume name is your project folder name plus `_gw1-data` — the
+  `gw1-data` part was deliberately kept as-is across the rename so existing
+  deployments didn't need any migration. Run `docker volume ls` if you're not
+  sure of the exact name.)
 
   Run this from the project folder; it creates a dated `.tar.gz` file there.
 
 - **Windows:** copy the whole `data` folder (inside the project folder, or —
-  if you used the installer — at `%LOCALAPPDATA%\GW1TradePrices\data`)
-  somewhere safe.
+  if you used the installer — at `%LOCALAPPDATA%\EctoWatch\data`, or
+  `%LOCALAPPDATA%\GW1TradePrices\data` for an install upgraded from before
+  the rename) somewhere safe.
 
 ### Restoring
 

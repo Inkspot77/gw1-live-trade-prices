@@ -5,7 +5,7 @@ This document explains how to use this repository as an Obsidian vault for proje
 ## 🏗️ Project Structure
 
 ```
-GW1 Price Dashboard Project/
+EctoWatch Project/
 ├── .obsidian/              # Obsidian configuration files
 │   ├── appearance.json     # Theme and appearance settings
 │   ├── app.json            # App preferences and layout

@@ -1,8 +1,8 @@
-# GW1 Live Trade Prices
+# EctoWatch
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js >=22.13](https://img.shields.io/badge/node-%3E%3D22.13-brightgreen.svg)](https://nodejs.org)
-[![CI](https://github.com/Inkspot77/gw1-live-trade-prices/actions/workflows/docker-image.yml/badge.svg)](https://github.com/Inkspot77/gw1-live-trade-prices/actions/workflows/docker-image.yml)
+[![CI](https://github.com/Inkspot77/ectowatch/actions/workflows/docker-image.yml/badge.svg)](https://github.com/Inkspot77/ectowatch/actions/workflows/docker-image.yml)
 
 <img width="1680" height="1210" alt="GWLP1" src="https://github.com/user-attachments/assets/9d4c27ff-7e49-44b0-8f46-ffc30873e8be" />
 

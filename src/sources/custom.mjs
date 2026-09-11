@@ -12,7 +12,7 @@
  * case cheaply, not becoming a general-purpose scraper.
  */
 
-const UA = { 'user-agent': 'gw1-price-dashboard (personal, low-rate, user-added source)' };
+const UA = { 'user-agent': 'ectowatch (personal, low-rate, user-added source)' };
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_ROWS = 5000;
 

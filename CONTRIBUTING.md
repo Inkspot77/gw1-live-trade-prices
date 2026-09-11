@@ -1,6 +1,6 @@
-# Contributing to GW1 Live Trade Prices
+# Contributing to EctoWatch
 
-Thank you for your interest in contributing to GW1 Live Trade Prices! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to EctoWatch! This document provides guidelines for contributing to the project.
 
 ## Getting Started
 
@@ -21,7 +21,7 @@ Thank you for your interest in contributing to GW1 Live Trade Prices! This docum
 ## Project layout
 
 ```
-bin/gw1-prices.mjs     entry point
+bin/ectowatch.mjs      entry point
 src/
   server.mjs           HTTP server + JSON API (loopback only)
   poller.mjs           per-source schedules, isolated failures
@@ -63,7 +63,7 @@ auth code, not needed just to run the app.
   then burns its full timeout and force-kills every time. Measured: 10s
   (killed) without `init: true`, 0.3s (clean exit) with it.
 - **A systemd unit exists as an alternative to Docker** —
-  `deploy/gw1-prices.service` and `deploy/preflight.sh`, for running the
+  `deploy/ectowatch.service` and `deploy/preflight.sh`, for running the
   plain Node process as a service on bare metal. Not currently walked
   through step by step anywhere; the comments in each file are the
   reference.

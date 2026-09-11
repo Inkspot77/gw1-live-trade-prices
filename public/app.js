@@ -888,7 +888,7 @@ function renderAlerts(alerts, inventory) {
   if (!open.length) {
     panel.hidden = true;
     $('#alerts-headline').textContent = '';
-    document.title = 'GW1 Live Trade Prices';
+    document.title = 'EctoWatch';
     return;
   }
   panel.hidden = false;
@@ -927,7 +927,7 @@ function renderAlerts(alerts, inventory) {
   }));
 
   const unseen = alerts.unseen ?? 0;
-  document.title = unseen ? `(${unseen}) GW1 Live Trade Prices` : 'GW1 Live Trade Prices';
+  document.title = unseen ? `(${unseen}) EctoWatch` : 'EctoWatch';
 
   const button = $('#alerts-seen');
   mount(button, el('span', { text: 'Mark seen' }),

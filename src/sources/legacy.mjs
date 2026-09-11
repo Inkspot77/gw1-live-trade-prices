@@ -10,7 +10,7 @@
 
 const RSS_URL = 'https://guildwarslegacy.com/forum/thread-list-rss-feed/12/';
 const BOARD_URL = 'https://guildwarslegacy.com/forum/board/12-price-check/';
-const UA = { 'user-agent': 'gw1-price-dashboard (personal, low-rate)' };
+const UA = { 'user-agent': 'ectowatch (personal, low-rate)' };
 
 function decodeEntities(text) {
   return String(text)

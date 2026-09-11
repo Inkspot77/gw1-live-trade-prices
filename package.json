@@ -1,13 +1,13 @@
 {
-  "name": "gw1-live-trade-prices",
-  "version": "1.4.0",
+  "name": "ectowatch",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
   "description": "Cross-referenced Guild Wars 1 price dashboard: live trade chat, NPC trader quotes, community price guides and the wiki demand calendar.",
   "engines": { "node": ">=22.13.0" },
   "scripts": {
-    "start": "node --env-file-if-exists=.env bin/gw1-prices.mjs",
-    "backfill": "node --env-file-if-exists=.env bin/gw1-prices.mjs --backfill",
+    "start": "node --env-file-if-exists=.env bin/ectowatch.mjs",
+    "backfill": "node --env-file-if-exists=.env bin/ectowatch.mjs --backfill",
     "test": "node --test test/*.test.mjs",
     "test:watch": "node --test --watch test/*.test.mjs",
     "test:coverage": "node --test --experimental-test-coverage test/*.test.mjs"
@@ -17,6 +17,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Inkspot77/gw1-live-trade-prices.git"
+    "url": "https://github.com/Inkspot77/ectowatch.git"
   }
 }

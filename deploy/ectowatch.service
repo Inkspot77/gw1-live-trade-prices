@@ -1,42 +1,46 @@
-# GW1 Live Trade Prices — systemd unit
+# EctoWatch — systemd unit
 #
 # Install:
-#   sudo cp deploy/gw1-prices.service /etc/systemd/system/
+#   sudo cp deploy/ectowatch.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable --now gw1-prices
+#   sudo systemctl enable --now ectowatch
 #
 # Adjust User, WorkingDirectory and the --host/--watch flags to match your box.
+#
+# Upgrading an existing gw1-prices.service deployment: this file was renamed
+# from the project's old name. `sudo systemctl disable --now gw1-prices` and
+# remove the old unit file first, or you'll end up running both side by side.
 
 [Unit]
-Description=GW1 Live Trade Prices dashboard
-Documentation=file:///opt/gw1-prices/README.md
+Description=EctoWatch dashboard
+Documentation=file:///opt/ectowatch/README.md
 # Needs outbound HTTPS for the price sources.
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=gw1
-Group=gw1
-WorkingDirectory=/opt/gw1-prices
+User=ectowatch
+Group=ectowatch
+WorkingDirectory=/opt/ectowatch
 
 # --host 0.0.0.0 exposes the dashboard to the LAN. The app has NO
 # authentication unless AUTH_USER/AUTH_PASS below are both set, and its POST
 # endpoints change stored state — so bind beyond loopback only on a network
 # you trust, or turn auth on, or both. To keep it private instead, drop the
 # flag (it binds 127.0.0.1 by default) and reach it over an SSH tunnel:
-#     ssh -N -L 8787:127.0.0.1:8787 gw1-server
-ExecStart=/usr/bin/node bin/gw1-prices.mjs --host 0.0.0.0 --port 8787 --watch /srv/gw1-sync/inventories
+#     ssh -N -L 8787:127.0.0.1:8787 ectowatch-server
+ExecStart=/usr/bin/node bin/ectowatch.mjs --host 0.0.0.0 --port 8787 --watch /srv/ectowatch-sync/inventories
 
 # Basic Auth for the app itself — a lighter alternative to running Caddy on
 # this box (see deploy/DEPLOY.md #7). Uncomment both, or neither: half-set
 # credentials make the process refuse to start rather than run unprotected.
 # Environment= would put the password in `systemctl show`/the unit file
 # itself; EnvironmentFile keeps it in a separate, root-only-readable file:
-#     install -m 600 /dev/null /etc/gw1-prices.env
+#     install -m 600 /dev/null /etc/ectowatch.env
 #     printf 'AUTH_USER=alan\nAUTH_PASS=<something long and unique>\n' \
-#       | tee /etc/gw1-prices.env >/dev/null
-# EnvironmentFile=/etc/gw1-prices.env
+#       | tee /etc/ectowatch.env >/dev/null
+# EnvironmentFile=/etc/ectowatch.env
 #
 # Remember: Basic Auth alone is base64, not encryption — it is only safe to
 # rely on over a transport that is already encrypted (an SSH tunnel, a
@@ -49,7 +53,7 @@ StartLimitIntervalSec=0
 
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=gw1-prices
+SyslogIdentifier=ectowatch
 
 # Hardening. The service only needs to read its own directory, write its
 # database, and read the synced inventory folder.
@@ -57,8 +61,8 @@ NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/opt/gw1-prices/data
-ReadOnlyPaths=/srv/gw1-sync
+ReadWritePaths=/opt/ectowatch/data
+ReadOnlyPaths=/srv/ectowatch-sync
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes

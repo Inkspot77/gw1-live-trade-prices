@@ -15,8 +15,9 @@
 #
 # Behaviour:
 #   - Excludes .git, .freebuff and the local prices.db* — the server builds
-#     its own history in the gw1-data volume (run with --backfill once for
-#     a 90-day NPC-trader baseline).
+#     its own history in the gw1-data volume (name kept as-is across the
+#     EctoWatch rename so existing deployments keep their data; run with
+#     --backfill once for a 90-day NPC-trader baseline).
 #   - Excludes Caddyfile after the first deploy. It holds the LAN password
 #     hash, which is set once on the server (see deploy/DEPLOY.md) — every
 #     later deploy must leave it alone, or it would keep getting overwritten
@@ -55,7 +56,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 HOST="${HOST:-${DEPLOY_HOST:-}}"
-DIR="${DIR:-${DEPLOY_DIR:-gw1-prices}}"
+DIR="${DIR:-${DEPLOY_DIR:-ectowatch}}"
 
 if [[ -z "$HOST" ]]; then
   echo "Missing server. Usage: bash deploy/deploy.sh user@server [--dir /path] [--backfill]" >&2

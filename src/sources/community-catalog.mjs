@@ -38,7 +38,7 @@
  *     upgrade components before their subtype is filled in)
  */
 
-const UA = { 'user-agent': 'gw1-price-dashboard (personal, low-rate, optional weekly refresh)' };
+const UA = { 'user-agent': 'ectowatch (personal, low-rate, optional weekly refresh)' };
 const MAX_BYTES = 10 * 1024 * 1024;
 
 /**

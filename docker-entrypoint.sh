@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the gw1-prices command line from environment variables, so the normal
+# Builds the ectowatch command line from environment variables, so the normal
 # container knobs (docker run -e / compose `environment:`) configure it without
 # anyone needing to override the whole command.
 #
@@ -20,4 +20,4 @@ case "$NO_POLL" in
 esac
 set -- --port "${PORT:-8787}" --host "${HOST:-0.0.0.0}" "$@"
 
-exec node bin/gw1-prices.mjs "$@"
+exec node bin/ectowatch.mjs "$@"

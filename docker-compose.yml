@@ -1,4 +1,4 @@
-# GW1 Live Trade Prices
+# EctoWatch
 #
 #   docker compose up -d --build          start the dashboard (loopback only)
 #   docker compose --profile lan up -d --build
@@ -8,11 +8,11 @@
 #                                          seed ~90 days of NPC trader history
 #                                          once (see deploy/DEPLOY.md #5 for why
 #                                          this must not also carry --no-poll)
-#   docker compose logs -f gw1-prices
+#   docker compose logs -f ectowatch
 #
 # The dashboard's own authentication is OFF by default (set AUTH_USER/
 # AUTH_PASS below to turn it on) and its POST endpoints change stored state.
-# The gw1-prices port mapping below binds 127.0.0.1 on the host only, so it is
+# The ectowatch port mapping below binds 127.0.0.1 on the host only, so it is
 # reachable from this machine and not the rest of the LAN — deliberately. To
 # share it with the LAN, use the `lan` profile: Caddy takes over host port
 # 8787, terminates TLS, and asks for a username/password before proxying to
@@ -21,9 +21,9 @@
 # other — use either, both, or neither.
 
 services:
-  gw1-prices:
+  ectowatch:
     build: .
-    image: gw1-prices:latest
+    image: ectowatch:latest
     restart: unless-stopped
     # Without this, Node runs as PID 1 of the container's PID namespace and a
     # kernel quirk means an *unhandled* SIGTERM is silently dropped rather than
@@ -71,7 +71,7 @@ services:
   # `docker compose up`, so it only runs when asked for by name.
   backfill:
     build: .
-    image: gw1-prices:latest
+    image: ectowatch:latest
     profiles: ["tools"]
     init: true  # same reason as above — makes `docker compose stop backfill` instant
     volumes:
@@ -101,7 +101,7 @@ services:
     profiles: ["lan"]
     restart: unless-stopped
     depends_on:
-      - gw1-prices
+      - ectowatch
     ports:
       - "8787:8787"
     volumes:

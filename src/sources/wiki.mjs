@@ -13,7 +13,7 @@
  */
 
 const API = 'https://wiki.guildwars.com/api.php';
-const UA = { 'user-agent': 'gw1-price-dashboard (personal, low-rate)' };
+const UA = { 'user-agent': 'ectowatch (personal, low-rate)' };
 
 async function parsePage(title) {
   const url = `${API}?action=parse&page=${encodeURIComponent(title)}`

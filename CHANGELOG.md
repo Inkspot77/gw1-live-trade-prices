@@ -1,11 +1,41 @@
 # Changelog
 
-All notable changes to GW1 Live Trade Prices will be documented in this file.
+All notable changes to EctoWatch will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.5.0] - 2026-09-11
+
+### Changed
+- **Renamed the project from "GW1 Live Trade Prices" to "EctoWatch"** — same
+  app, same data, just a shorter name. What this means depending on how you
+  run it:
+  - **Windows installer:** upgrades in place automatically. The installer's
+    internal app identity (not its display name) is unchanged on purpose, so
+    Windows recognizes an existing install as the same app and upgrades it
+    rather than installing a second copy side by side — your existing
+    `prices.db` and settings are untouched. New installs go to
+    `%LOCALAPPDATA%\EctoWatch` instead of `%LOCALAPPDATA%\GW1TradePrices`;
+    an upgraded install stays at its original folder.
+  - **Docker:** the compose service is now named `ectowatch` (was
+    `gw1-prices`) and the image tag is `ectowatch:latest`. The named data
+    volume is still called `gw1-data` — deliberately left unchanged so
+    existing deployments keep their price history without any migration
+    step. Re-run `docker compose up -d --build` (or `--profile lan`) after
+    pulling this update.
+  - **systemd:** the unit file is now `deploy/ectowatch.service` (was
+    `deploy/gw1-prices.service`), and it expects a `ectowatch` user/group and
+    `/opt/ectowatch` instead of `gw1`/`/opt/gw1-prices`. If you're running the
+    systemd unit already, this needs a manual migration — see the comment at
+    the top of the new unit file.
+  - **Running from source:** the entry point is now `bin/ectowatch.mjs` (was
+    `bin/gw1-prices.mjs`); `npm start`/`npm run backfill` already point at
+    the new path.
+  - The outbound `User-Agent` header sent to price sources changed from
+    `gw1-price-dashboard` to `ectowatch` — cosmetic, no behavior change.
 
 ## [1.4.0] - 2026-09-11
 

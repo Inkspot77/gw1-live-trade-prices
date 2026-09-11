@@ -25,7 +25,7 @@ export const MIRRORS = {
   [REALMS.PRE]: { host: 'https://ascalon.gwtoolbox.com', label: 'Ascalon' },
 };
 
-const UA = { 'user-agent': 'gw1-price-dashboard (personal, low-rate)' };
+const UA = { 'user-agent': 'ectowatch (personal, low-rate)' };
 
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 

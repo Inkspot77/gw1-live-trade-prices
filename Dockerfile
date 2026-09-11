@@ -1,4 +1,4 @@
-# GW1 Live Trade Prices
+# EctoWatch
 #
 # No dependencies to install — the whole app is Node built-ins (node:sqlite,
 # node:http, global fetch) — so this is a single stage: copy the source in and
