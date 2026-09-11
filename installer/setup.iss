@@ -32,9 +32,9 @@ WizardStyle=modern
 [Files]
 ; dist\ is assembled by CI (see the windows-installer job in
 ; .github/workflows/docker-image.yml): the portable Node runtime, bin/,
-; src/, public/, data/gwtoolbox-items.json, and this folder's launch
-; scripts. Never ship a pre-populated data\prices.db — openDatabase()
-; creates it fresh per machine on first run.
+; src/, public/, data/gwtoolbox-items.json, data/community-item-catalog.json,
+; and this folder's launch scripts. Never ship a pre-populated
+; data\prices.db — openDatabase() creates it fresh per machine on first run.
 Source: "..\dist\*"; DestDir: "{app}"; Flags: recursesubdirs
 
 [Tasks]

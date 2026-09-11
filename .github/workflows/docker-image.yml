@@ -60,6 +60,7 @@ jobs:
 
           New-Item -ItemType Directory -Path dist\data -Force | Out-Null
           Copy-Item data\gwtoolbox-items.json dist\data\gwtoolbox-items.json
+          Copy-Item data\community-item-catalog.json dist\data\community-item-catalog.json
 
           Copy-Item installer\launch.bat dist\launch.bat
           Copy-Item installer\launch.vbs dist\launch.vbs
