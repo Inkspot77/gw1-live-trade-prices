@@ -158,10 +158,13 @@ because the dashboard didn't recognize it at first glance.
 
 Items are matched by their internal model id wherever possible — the visual
 skin, which never changes even when an item rolls different stats — falling
-back to a name you've taught it. A built-in table already covers materials,
-dyes, and common consumables; an optional, weekly-refreshing catalog can
-extend that to weapon and armor skins too (`COMMUNITY_CATALOG_URL` in
-`.env.example` — off, and harmless to leave off, by default).
+back to a name you've taught it. A built-in table covers materials, dyes,
+and common consumables, and a second, much broader one — weapon and armor
+skins, trophies, keys, kits, minipets, and more — ships with every install
+and needs no setup to work. It's community-sourced, so it isn't exhaustive
+(see Known rough edges below); optionally, `COMMUNITY_CATALOG_URL` in
+`.env.example` keeps it refreshed from that source weekly instead of staying
+frozen at whatever shipped — off, and harmless to leave off, by default.
 
 ## Sell alerts: "you should probably sell this right now"
 
