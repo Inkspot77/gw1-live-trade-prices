@@ -32,6 +32,10 @@ WizardStyle=modern
 ; No code-signing certificate for v1 — Windows SmartScreen will warn on
 ; first run ("Windows protected your PC"). Documented in
 ; deploy/DEPLOY.md's Troubleshooting table rather than blocking on a cert.
+; Icon for Setup-*.exe itself and the installer wizard window - ships from
+; this folder directly (see [Files] below for the copy that lands in {app}
+; so the desktop/Start Menu shortcuts get it too), not from CI's dist\.
+SetupIconFile=ectowatch.ico
 
 [Files]
 ; dist\ is assembled by CI (see the windows-installer job in
@@ -40,15 +44,18 @@ WizardStyle=modern
 ; and this folder's launch scripts. Never ship a pre-populated
 ; data\prices.db — openDatabase() creates it fresh per machine on first run.
 Source: "..\dist\*"; DestDir: "{app}"; Flags: recursesubdirs
+; Shortcut icon - copied straight from this folder rather than through CI's
+; dist\ bundling step, so adding/changing it never needs a workflow edit.
+Source: "ectowatch.ico"; DestDir: "{app}"
 
 [Tasks]
 Name: "startupicon"; Description: "Start {#MyAppName} when Windows starts"; GroupDescription: "Additional options:"
 
 [Icons]
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\launch.vbs"
-Name: "{group}\{#MyAppName}"; Filename: "{app}\launch.vbs"
-Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\launch.vbs"; Tasks: startupicon
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\launch.vbs"; IconFilename: "{app}\ectowatch.ico"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\launch.vbs"; IconFilename: "{app}\ectowatch.ico"
+Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\ectowatch.ico"
+Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\launch.vbs"; Tasks: startupicon; IconFilename: "{app}\ectowatch.ico"
 
 [Run]
 Filename: "{app}\launch.vbs"; Flags: postinstall nowait skipifsilent; Description: "Launch {#MyAppName} now"

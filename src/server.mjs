@@ -43,6 +43,8 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.png': 'image/png',
 };
 
 function send(res, status, body, headers = {}) {
@@ -434,7 +436,7 @@ export async function startServer({
     });
     server.listen(port, host, resolve);
   });
-  console.log(`GW1 price dashboard -> http://${host}:${port}`);
+  console.log(`EctoWatch -> http://${host}:${port}`);
   if (auth.enabled) {
     console.log(`Basic Auth: enabled (user "${authUser}")`);
   } else if (host !== '127.0.0.1' && host !== 'localhost') {

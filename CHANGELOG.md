@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-11
+
+### Added
+- A real EctoWatch icon (a satchel with a coin badge), replacing generic
+  defaults everywhere one shows up: the browser tab (favicon, SVG with an
+  `.ico` fallback for browsers that want one), the Windows installer's
+  `Setup-*.exe` file and wizard window, and the desktop/Start Menu/startup
+  shortcuts it creates. The Inno Setup `AppId` this depends on for "same
+  app" recognition across upgrades is unaffected — only the icon changed.
+
+### Fixed
+- The startup log line still said "GW1 price dashboard" after the EctoWatch
+  rename (v1.5.0) — a different wording than the strings that rename's
+  sweep searched for, so it slipped through. Cosmetic only; never affected
+  behavior.
+
 ## [1.6.0] - 2026-09-11
 
 ### Added
